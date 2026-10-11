@@ -557,3 +557,9 @@ textarea.paste { width: 100%; font-family: ui-monospace, 'Courier New', monospac
 .eng-row { padding: 0.6rem 0.8rem; }
 .eng-front { font-weight: 700; }
 .practice .num { font-size: 1.15em; }
+
+/* 附近餐廳 */
+.near-controls { margin-top: 0.5rem; }
+.near-groups { margin: 0.3rem 0 0.8rem; }
+.chip-btn { border: 2px solid var(--line); border-radius: 999px; background: var(--mustard); color: #2b2118; font: inherit; font-weight: 700; font-size: 0.85rem; padding: 0.2rem 0.7rem; cursor: pointer; }
+.chip-btn.off { background: var(--surface-solid); color: var(--muted); text-decoration: line-through; border-style: dashed; }

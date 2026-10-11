@@ -16,7 +16,7 @@ function arc(cx, cy, r, a0, a1) {
 const short = (s) => (s.length > 7 ? `${s.slice(0, 6)}…` : s);
 
 // 轉盤：轉完呼叫 onResult(meal)。點轉盤可以直接跳到結果。
-export default function Wheel({ options, onResult }) {
+export default function Wheel({ options, onResult, caption }) {
   const segs = wheelSegments(options);
   const [rotation, setRotation] = useState(0);
   const [spinning, setSpinning] = useState(false);
@@ -81,7 +81,7 @@ export default function Wheel({ options, onResult }) {
       <button className="btn primary big" onClick={spin} disabled={segs.length < 2}>
         {spinning ? '直接看結果' : '轉！'}
       </button>
-      <p className="muted small center">{options.length} 個選項・符合一餐盤原則的格子大一倍</p>
+      <p className="muted small center">{caption ?? `${options.length} 個選項・符合一餐盤原則的格子大一倍`}</p>
     </div>
   );
 }

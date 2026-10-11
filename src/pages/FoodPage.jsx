@@ -9,9 +9,11 @@ import { ACTIVITY, latestWeight, calorieTarget, weightTrend, trendLabel } from '
 import { money, Sheet } from '../components/ui.jsx';
 import Wheel, { MealLine } from '../components/Wheel.jsx';
 import FoodLog from '../components/FoodLog.jsx';
+import Nearby from '../components/Nearby.jsx';
 
 const TABS = [
   ['next', '下一餐'],
+  ['near', '附近'],
   ['snap', '打卡'],
   ['list', '常吃清單'],
   ['body', '體重'],
@@ -33,6 +35,7 @@ export default function FoodPage() {
         ))}
       </div>
       {tab === 'next' && <NextMeal wheel={params.get('wheel') === '1'} />}
+      {tab === 'near' && <Nearby />}
       {tab === 'snap' && <FoodLog />}
       {tab === 'list' && <MealList />}
       {tab === 'body' && <Body />}
