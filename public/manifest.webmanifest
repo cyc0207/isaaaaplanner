@@ -3,7 +3,7 @@
   "short_name": "今天",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#f6ecff",
-  "theme_color": "#f6ecff",
+  "background_color": "#f2e8d2",
+  "theme_color": "#f2e8d2",
   "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml" }]
 }
