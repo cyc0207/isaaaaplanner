@@ -2,6 +2,8 @@ import { parseCSVObjects, toCSV } from './csv.js';
 import { addDays } from './date.js';
 
 export const ENGLISH_HEADER = ['type', 'front', 'back', 'example', 'tags', 'source', 'note'];
+// 匯出時多帶這幾欄；匯入時有就讀、沒有也可以
+export const EXTRA_HEADER = ['collocation', 'root', 'pos'];
 
 export const TYPES = { word: '單字', phrase: '片語', sentence: '句型', grammar: '文法', fix: '改錯', link: '資源' };
 
@@ -59,6 +61,9 @@ export function buildEnglishPreview(text, existing) {
       tags: splitTags(r.tags),
       source: r.source || '',
       note: r.note || '',
+      collocation: r.collocation || '',
+      root: r.root || '',
+      pos: r.pos || '',
     };
     const errors = [];
     if (!row.type) errors.push(`不認得的 type「${r.type}」`);
@@ -74,7 +79,7 @@ export function buildEnglishPreview(text, existing) {
 
 export function toEnglishCSV(items) {
   return toCSV(
-    ENGLISH_HEADER,
+    [...ENGLISH_HEADER, ...EXTRA_HEADER],
     items.map((it) => ({ ...it, tags: (it.tags || []).join('|') })),
   );
 }
@@ -83,6 +88,7 @@ export function newItem(data, t) {
   return {
     type: data.type || 'word', front: data.front || '', back: data.back || '', example: data.example || '',
     tags: data.tags || [], source: data.source || '', note: data.note || '',
+    collocation: data.collocation || '', root: data.root || '', pos: data.pos || '',
     box: 0, due: t, reps: 0, lapses: 0, lastReviewed: '',
   };
 }

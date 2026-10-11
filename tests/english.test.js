@@ -114,3 +114,55 @@ describe('收件匣匯入', () => {
     expect(normDate('')).toBe('');
   });
 });
+
+import { THEMES } from '../src/data/decks.js';
+import { weekTheme, pickNewWords, cloze, isCorrect, pickMode, reviewModes, deckToItem } from '../src/lib/study.js';
+
+describe('內建卡組與每日練習', () => {
+  it('卡組每行都有六欄、沒有重複', () => {
+    for (const { words } of Object.values(THEMES)) {
+      expect(words.length).toBeGreaterThan(50);
+      for (const w of words) {
+        expect(w.front && w.back && w.example, w.front).toBeTruthy();
+        expect(w.collocation, w.front).toBeTruthy();
+      }
+      expect(new Set(words.map((w) => w.front.toLowerCase())).size).toBe(words.length);
+    }
+  });
+  it('大部分例句可以挖空', () => {
+    const all = Object.values(THEMES).flatMap((x) => x.words);
+    const ok = all.filter((w) => cloze(w.example, w.front)).length;
+    expect(ok / all.length).toBeGreaterThan(0.8);
+  });
+  it('每週主題輪替，可以手動換本週', () => {
+    expect(weekTheme({}, '2026-10-12')).toBe('life');
+    expect(weekTheme({}, '2026-10-21')).toBe('work');
+    expect(weekTheme({}, '2026-10-26')).toBe('finance');
+    expect(weekTheme({}, '2026-11-02')).toBe('life');
+    expect(weekTheme({}, '2026-10-05')).toBe('finance');
+    expect(weekTheme({ theme: 'finance', themeWeek: '2026-10-12' }, '2026-10-14')).toBe('finance');
+    expect(weekTheme({ theme: 'finance', themeWeek: '2026-10-12' }, '2026-10-20')).toBe('work');
+  });
+  it('新字跳過已經有的，主題用完從別的主題補', () => {
+    const first = THEMES.life.words[0];
+    const items = [{ type: first.type, front: first.front.toUpperCase() }];
+    const picked = pickNewWords('life', items, 3);
+    expect(picked.map((w) => w.front)).toEqual(THEMES.life.words.slice(1, 4).map((w) => w.front));
+    const allLife = THEMES.life.words.map((w) => ({ type: w.type, front: w.front }));
+    expect(pickNewWords('life', allLife, 2)[0].deck).toBe('work');
+  });
+  it('挖空允許字尾變化，片語整段', () => {
+    expect(cloze('We managed to finish.', 'manage')).toMatchObject({ answer: 'managed', before: 'We ', after: ' to finish.' });
+    expect(cloze("I'm looking forward to it.", 'look forward to')).toBeNull();
+    expect(cloze('We need to meet the deadline.', 'deadline').answer).toBe('deadline');
+    expect(isCorrect(' Managed ', ['managed'])).toBe(true);
+    expect(isCorrect('manage', ['managed', 'manage'])).toBe(true);
+  });
+  it('第一次翻卡，之後輪流其他方式；改錯卡只翻卡', () => {
+    const w = deckToItem(THEMES.work.words[0], '2026-10-11');
+    expect(w).toMatchObject({ introducedOn: '2026-10-11', due: '2026-10-11', deck: 'work' });
+    expect(pickMode(w)).toBe('flip');
+    expect(reviewModes(w)).toEqual(['flip', 'cloze', 'spell']);
+    expect(reviewModes({ type: 'fix', front: 'I am agree', back: 'I agree' })).toEqual(['flip']);
+  });
+});

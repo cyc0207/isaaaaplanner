@@ -674,3 +674,25 @@ textarea.paste { width: 100%; font-family: ui-monospace, 'Courier New', monospac
 /* 逆位：色帶移到下面、數字倒過來，牌名保持正的才看得懂 */
 .tarot-card.small .tarot-inner.reversed { border-top-width: 1.5px; border-bottom-width: 7px; }
 .tarot-spread:not(.small) .tarot-inner.reversed { border-top-width: 1.5px; border-bottom-width: 10px; }
+
+/* 英文：今天 */
+.today-bar { margin-bottom: 0.4rem; }
+.today-bar p { margin: 0.5rem 0 0; }
+.theme-pick { display: flex; align-items: center; gap: 0.4rem; font-weight: 700; font-size: 0.88rem; }
+.theme-pick select { min-height: 36px; font-weight: 700; }
+.word-list { gap: 0.6rem; margin-bottom: 0.2rem; }
+.word-card { display: flex; flex-direction: column; gap: 0.3rem; padding: 0.7rem 0.8rem; background: var(--surface-solid); border: 2px solid var(--line); border-radius: 14px; box-shadow: 3px 3px 0 var(--shadow); }
+.word-front { font-size: 1.25rem; font-weight: 900; }
+.word-zh { font-weight: 700; color: var(--accent); }
+.word-line { font-size: 0.88rem; overflow-wrap: anywhere; }
+.word-tag { display: inline-block; margin-right: 0.4rem; padding: 0 0.4rem; border-radius: 4px; background: var(--teal); color: #fff8ec; font-size: 0.72rem; font-weight: 700; vertical-align: 1px; }
+.flash-cloze { font-size: 1.15rem; line-height: 1.6; margin: 0.3rem 0; overflow-wrap: anywhere; }
+.flash-cloze .blank { display: inline-block; min-width: 3em; padding: 0 0.2em; border-bottom: 3px solid var(--accent); color: var(--accent); font-weight: 900; text-align: center; }
+.spell-input { font-size: 1.1rem !important; }
+.sentence-box { font-family: var(--sans); font-size: 1rem; }
+.fix-row { padding: 0.5rem 0.6rem; background: var(--surface-solid); border: 2px solid var(--line); border-radius: 12px; font-size: 0.92rem; }
+.fix-row.st-duplicate, .fix-row.st-error { opacity: 0.6; }
+.fix-row label { align-items: flex-start; }
+.fix-row input { margin-top: 0.25rem; }
+.sentence-inner { margin-top: 0.6rem; }
+details.section > summary { cursor: pointer; padding: 0.3rem 0; }

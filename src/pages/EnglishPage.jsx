@@ -1,16 +1,17 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { useData } from '../data.jsx';
 import { today } from '../lib/date.js';
 import {
-  TYPES, GPT_PROMPT, buildEnglishPreview, dueItems, practicable, review, newItem, splitTags, toEnglishCSV,
+  TYPES, GPT_PROMPT, buildEnglishPreview, practicable, newItem, splitTags, toEnglishCSV,
 } from '../lib/english.js';
 import { gmailLink } from '../lib/gmail.js';
 import { auth } from '../firebase.js';
 import { Sheet } from '../components/ui.jsx';
+import EnglishToday from '../components/EnglishToday.jsx';
 import { useGmailSync, SyncButton, QueryEditor } from '../components/Gmail.jsx';
 
 const TABS = [
-  ['practice', '練習'],
+  ['practice', '今天'],
   ['library', '卡片'],
   ['letters', '英文信'],
   ['import', '匯入'],
@@ -31,117 +32,11 @@ export default function EnglishPage() {
           </button>
         ))}
       </div>
-      {tab === 'practice' && <Practice goImport={() => setTab('import')} />}
+      {tab === 'practice' && <EnglishToday goImport={() => setTab('import')} />}
       {tab === 'library' && <Library onEdit={setEditing} />}
       {tab === 'letters' && <Letters onAdd={setEditing} />}
       {tab === 'import' && <Import />}
       {editing && <ItemEditor item={editing} onClose={() => setEditing(null)} />}
-    </div>
-  );
-}
-
-// ---- 練習：翻卡片，記得就隔久一點再出現 ----
-function Practice({ goImport }) {
-  const { englishItems, englishLog, api } = useData();
-  const t = today();
-  const [dir, setDir] = useState('en');
-  const [extra, setExtra] = useState(null);
-  const [flipped, setFlipped] = useState(false);
-  const [doneIds, setDoneIds] = useState([]);
-  const due = useMemo(() => dueItems(englishItems, t), [englishItems, t]);
-  const queue = (extra || due).filter((it) => !doneIds.includes(it.id));
-  const card = queue[0];
-
-  const answer = (ok) => {
-    if (!extra) api.update(`englishItems/${card.id}`, review(card, ok, t));
-    const done = [...doneIds, card.id];
-    setDoneIds(done);
-    setFlipped(false);
-    // 練滿 10 張，首頁的「英文」習慣自動打勾
-    if (done.length >= 10 && !englishLog[t]) api.set(`englishLog/${t}`, { minutes: 15, note: `網站練習 ${done.length} 張` });
-  };
-
-  const more = () => {
-    const pool = englishItems.filter(practicable);
-    const pick = pool.sort(() => Math.random() - 0.5).slice(0, 10);
-    setDoneIds([]);
-    setExtra(pick);
-  };
-
-  if (!englishItems.length) {
-    return (
-      <div className="card empty-eng">
-        <p>還沒有任何卡片。</p>
-        <p className="muted small">先把 ChatGPT 整理的英文資源匯進來，或在「卡片」自己加。</p>
-        <button className="btn primary" onClick={goImport}>
-          去匯入
-        </button>
-      </div>
-    );
-  }
-
-  return (
-    <div className="practice">
-      <div className="row between">
-        <span className="muted small">
-          {extra ? '加練（不影響複習排程）' : `今天要複習 ${due.length} 張`}・已練 <span className="num">{doneIds.length}</span> 張
-        </span>
-        <div className="seg two-mini">
-          <button className={dir === 'en' ? 'on' : ''} onClick={() => setDir('en')}>
-            看英文
-          </button>
-          <button className={dir === 'zh' ? 'on' : ''} onClick={() => setDir('zh')}>
-            看中文
-          </button>
-        </div>
-      </div>
-
-      {card ? (
-        <div className={`flash ${flipped ? 'flipped' : ''}`} onClick={() => !flipped && setFlipped(true)}>
-          <div className="flash-meta">
-            <span className="chip">{TYPES[card.type]}</span>
-            {(card.tags || []).slice(0, 3).map((x) => (
-              <span key={x} className="chip">
-                {x}
-              </span>
-            ))}
-          </div>
-          {card.type === 'fix' && <p className="muted small">這句哪裡錯？</p>}
-          <p className="flash-front">{dir === 'en' || card.type === 'fix' || !card.back ? card.front : card.back}</p>
-          {flipped ? (
-            <div className="flash-back">
-              <p className="flash-answer">{dir === 'en' || card.type === 'fix' || !card.back ? card.back || '（沒有寫意思）' : card.front}</p>
-              {card.example && <p className="flash-example">{card.example}</p>}
-              {card.note && <p className="muted small">{card.note}</p>}
-              <div className="row gap flash-btns">
-                <button className="btn grow" onClick={(e) => {
-                    e.stopPropagation();
-                    answer(false);
-                  }}>
-                  忘了
-                </button>
-                <button className="btn primary grow" onClick={(e) => {
-                    e.stopPropagation();
-                    answer(true);
-                  }}>
-                  記得
-                </button>
-              </div>
-            </div>
-          ) : (
-            <p className="muted small flash-tap">點一下看答案</p>
-          )}
-        </div>
-      ) : (
-        <div className="card empty-eng">
-          <p className="strong">{doneIds.length ? `練完了，共 ${doneIds.length} 張。` : '今天沒有要複習的。'}</p>
-          {englishLog[t] && <p className="muted small">首頁的英文已經打勾。</p>}
-          <button className="btn" onClick={more}>
-            隨機加練 10 張
-          </button>
-        </div>
-      )}
-      <p className="muted small">記得的卡片會隔 1、3、7、14、30、60 天再出現；忘了就明天再來。</p>
     </div>
   );
 }
@@ -222,6 +117,7 @@ function ItemEditor({ item, onClose }) {
     const data = {
       type: f.type, front: f.front.trim(), back: f.back.trim(), example: f.example.trim(),
       tags: splitTags(f.tagsText), source: f.source, note: f.note.trim(),
+      collocation: (f.collocation || '').trim(), root: (f.root || '').trim(),
     };
     if (isNew) api.add('englishItems', newItem(data, today()));
     else api.update(`englishItems/${item.id}`, data);
@@ -254,6 +150,18 @@ function ItemEditor({ item, onClose }) {
             例句
             <textarea rows={2} value={f.example} onChange={(e) => setF({ ...f, example: e.target.value })} />
           </label>
+        )}
+        {f.type !== 'link' && f.type !== 'fix' && (
+          <>
+            <label>
+              搭配詞（; 分開）
+              <input value={f.collocation || ''} onChange={(e) => setF({ ...f, collocation: e.target.value })} placeholder="make a decision; a tough decision" />
+            </label>
+            <label>
+              字根提示
+              <input value={f.root || ''} onChange={(e) => setF({ ...f, root: e.target.value })} />
+            </label>
+          </>
         )}
         <label>
           主題（用 | 分開）

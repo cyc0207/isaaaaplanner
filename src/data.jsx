@@ -14,7 +14,7 @@ const COLLECTIONS = [
   'meals', 'weightLog', 'budgetChanges', 'inbox',
   'tarotLog',
   // Gmail 收進來的信、英文卡片
-  'mail', 'englishItems',
+  'mail', 'englishItems', 'englishJournal',
 ];
 
 const DataContext = createContext(null);
@@ -140,6 +140,8 @@ export function DataProvider({ uid, children }) {
       mail: (raw.mail || []).slice().sort((a, b) => (b.ts || 0) - (a.ts || 0)),
       gmail: settings.gmail || {},
       englishItems: raw.englishItems || [],
+      englishJournal: byId('englishJournal'),
+      englishSettings: settings.english || {},
       body: settings.body || null,
       dismissed: settings.suggest?.dismissed || {},
       // 已結帳的月份，改紀錄前先確認一次
