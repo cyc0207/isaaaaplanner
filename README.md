@@ -29,6 +29,10 @@ VITE_USE_EMULATOR=1 npm run dev
 
 ## 部署
 
+**Vercel（目前用的方式）**：Vercel 連到這個 GitHub repo，推到 main 就會自動部署（設定在 `vercel.json`）。Vercel 的網域要加到 Firebase Authentication →「設定」→「授權網域」。Firestore 規則改了要到 Firebase 主控台 → Firestore →「規則」貼上 `firestore.rules` 再發布。
+
+**Firebase Hosting（備用）**：
+
 ```bash
 npx firebase login
 npm run deploy              # 建置後部署 Hosting 和 Firestore 規則
