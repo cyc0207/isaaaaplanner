@@ -463,3 +463,86 @@ body::before { background-image: radial-gradient(circle, rgba(255,250,235,0.95) 
   .chip { background: var(--surface-2); }
   body::before { background-image: radial-gradient(circle, rgba(240,227,198,0.35) 1.2px, transparent 1.6px); }
 }
+
+/* ───── 特效（系統設定「減少動態效果」時不播） ───── */
+.fx-layer { position: fixed; inset: 0; pointer-events: none; z-index: 100; }
+.fx-particle { position: absolute; transform: translate(-50%, -50%); font-weight: 900; text-shadow: 0 0 6px rgba(255,250,235,0.9); animation: fx-fly 0.8s cubic-bezier(.15,.7,.3,1) forwards; }
+@keyframes fx-fly {
+  0% { transform: translate(-50%, -50%) scale(0.4) rotate(0); opacity: 1; }
+  70% { opacity: 1; }
+  100% { transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy) + 30px)) scale(1) rotate(var(--rot)); opacity: 0; }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  /* 背景星星閃爍 */
+  body::before { animation: twinkle 4s ease-in-out infinite alternate; }
+  @keyframes twinkle { from { opacity: 0.45; } to { opacity: 1; } }
+
+  /* 標題漸層流動 */
+  h1 { background-size: 220% 100%; animation: title-flow 6s ease-in-out infinite alternate; }
+  @keyframes title-flow { from { background-position: 0% 50%; } to { background-position: 100% 50%; } }
+  h1::before { display: inline-block; animation: spin-star 5s linear infinite; }
+  @keyframes spin-star { to { transform: rotate(360deg); } }
+
+  /* 卡片進場：由下往上彈出，一張接一張 */
+  .page > *:not(.toast):not(.sheet-backdrop), .dash > *, .list > li, .bars > *, .summary-grid > * { animation: rise 0.45s cubic-bezier(.2,.9,.3,1.25) both; }
+  .dash > *:nth-child(2), .list > li:nth-child(2) { animation-delay: 0.04s; }
+  .dash > *:nth-child(3), .list > li:nth-child(3) { animation-delay: 0.08s; }
+  .dash > *:nth-child(4), .list > li:nth-child(4) { animation-delay: 0.12s; }
+  .dash > *:nth-child(5), .list > li:nth-child(5) { animation-delay: 0.16s; }
+  .dash > *:nth-child(6), .list > li:nth-child(6) { animation-delay: 0.2s; }
+  .dash > *:nth-child(n+7), .list > li:nth-child(n+7) { animation-delay: 0.24s; }
+  @keyframes rise { from { opacity: 0; transform: translateY(14px) scale(0.98); } to { opacity: 1; transform: none; } }
+
+  /* 鐳射光掃過：圓環卡、標籤、主要按鈕 */
+  .ring-card, h2, .btn.primary, .tabs button.on, .cat:first-child, .cat:nth-child(2), .month-cell.is-today { position: relative; overflow: hidden; }
+  .ring-card::after, h2::before, .btn.primary::after, .tabs button.on::after, .cat:first-child::after, .cat:nth-child(2)::after, .month-cell.is-today::after {
+    content: ''; position: absolute; top: -50%; left: -60%; width: 40%; height: 200%; pointer-events: none;
+    background: linear-gradient(100deg, transparent, rgba(255,255,255,0.75), rgba(246,221,154,0.5), rgba(207,226,214,0.5), transparent);
+    transform: rotate(18deg); animation: sheen 3.6s ease-in-out infinite;
+  }
+  h2::before { animation-duration: 4.4s; }
+  .btn.primary::after, .cat:first-child::after { animation-delay: 1.2s; }
+  .cat:nth-child(2)::after, .tabs button.on::after { animation-delay: 2s; }
+  @keyframes sheen { 0%, 55% { left: -60%; } 100% { left: 130%; } }
+
+  /* 圓環：打開時從 0 填滿，外圈發光呼吸 */
+  .ring-fg { animation: ring-in 0.9s cubic-bezier(.2,.8,.2,1) both; filter: drop-shadow(0 0 4px rgba(196,80,47,0.6)); }
+  @keyframes ring-in { from { stroke-dashoffset: 999; } }
+  .ring-card { animation: rise 0.45s cubic-bezier(.2,.9,.3,1.25) both, glow 2.8s ease-in-out 0.5s infinite alternate; }
+  @keyframes glow { from { box-shadow: 4px 4px 0 var(--shadow), 0 0 0 rgba(224,165,38,0); } to { box-shadow: 4px 4px 0 var(--shadow), 0 0 22px rgba(224,165,38,0.75); } }
+
+  /* 打勾：勾勾彈一下，整張卡跳一下 */
+  .check input:checked + .box { animation: check-pop 0.35s cubic-bezier(.3,1.6,.5,1); }
+  @keyframes check-pop { 0% { transform: scale(0.6); } 100% { transform: scale(1); } }
+  .fx-pop { animation: card-jump 0.45s cubic-bezier(.3,1.6,.5,1) !important; }
+  @keyframes card-jump { 0% { transform: scale(1); } 35% { transform: scale(1.035) rotate(-0.6deg); } 100% { transform: scale(1); } }
+
+  /* 提醒列：星號閃爍 */
+  .reminder strong::before { display: inline-block; animation: blink-star 1.4s steps(2) infinite; }
+  @keyframes blink-star { 50% { opacity: 0.25; transform: scale(0.8); } }
+
+  /* 底部分頁：選到的圖示彈跳 */
+  .tabbar a.active svg { animation: bounce 0.5s cubic-bezier(.3,1.8,.5,1); }
+  @keyframes bounce { 0% { transform: translateY(0) scale(0.8); } 50% { transform: translateY(-6px) scale(1.1); } 100% { transform: none; } }
+
+  /* 提示訊息彈入 */
+  .toast { animation: toast-in 0.4s cubic-bezier(.3,1.6,.5,1); }
+  @keyframes toast-in { from { transform: translate(-50%, 30px) scale(0.8); opacity: 0; } }
+
+  /* 超支的數字抖一下 */
+  .stat.over .big, .bar-row.over .bar-foot { animation: shake 0.5s 0.4s 2; }
+  @keyframes shake { 25% { transform: translateX(-3px); } 75% { transform: translateX(3px); } }
+
+  /* 進度條：斜紋流動 */
+  .bar-fill { background-size: 200% 100%; animation: bar-flow 3s linear infinite; }
+  @keyframes bar-flow { from { background-position: 0 0; } to { background-position: 200% 0; } }
+  .bar-fill { background-image: linear-gradient(90deg, #c4502f, #e0a526 25%, #2d6a6a 50%, #e0a526 75%, #c4502f); }
+  .bar-row.warn .bar-fill { background-image: linear-gradient(90deg, #f2c45a, #d08a1c, #f2c45a); }
+  .bar-row.over .bar-fill { background-image: linear-gradient(90deg, #d0603c, #8e2a1c, #d0603c); }
+
+  /* 按鈕與卡片 hover（電腦） */
+  @media (hover: hover) {
+    .btn:hover, .cat:hover:not(:disabled), .task:hover { transform: translate(-1px, -1px); box-shadow: 5px 5px 0 var(--shadow), inset 0 2px 0 rgba(255,255,255,0.6); }
+  }
+}
