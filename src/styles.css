@@ -563,3 +563,6 @@ textarea.paste { width: 100%; font-family: ui-monospace, 'Courier New', monospac
 .near-groups { margin: 0.3rem 0 0.8rem; }
 .chip-btn { border: 2px solid var(--line); border-radius: 999px; background: var(--mustard); color: #2b2118; font: inherit; font-weight: 700; font-size: 0.85rem; padding: 0.2rem 0.7rem; cursor: pointer; }
 .chip-btn.off { background: var(--surface-solid); color: var(--muted); text-decoration: line-through; border-style: dashed; }
+
+/* 首頁：吃什麼的捷徑 */
+.food-shortcuts { display: flex; flex-wrap: wrap; gap: 0.45rem; margin: 0.4rem 0 0.2rem; }
