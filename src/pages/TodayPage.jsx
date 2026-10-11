@@ -25,6 +25,9 @@ export default function TodayPage() {
   const { shown, overflow } = todayTasks(tasks, day);
   const overdue = overdueTasks(tasks, day);
   const doneToday = shown.filter((t) => t.done).length;
+  // 圓環 = 今天的任務 + 每天固定，一起算
+  const habitsDone = habits.filter((h) => habitLog[day]?.done?.[h]).length;
+  const ringTotal = shown.length + habits.length || MAX_TODAY;
   const week = weekCompletion(tasks, weekDays(day));
   const meal = todayMealLeft(budget, expenses, day);
   const drink = weekDrinkLeft(budget, expenses, day);
@@ -61,8 +64,11 @@ export default function TodayPage() {
 
       <section className="dash">
         <div className="card ring-card">
-          <Ring value={doneToday} total={shown.length || MAX_TODAY} />
+          <Ring value={doneToday + habitsDone} total={ringTotal} />
           <div className="label">今天完成</div>
+          <div className="ring-sub">
+            任務 {doneToday}/{shown.length}・固定 {habitsDone}/{habits.length}
+          </div>
         </div>
         <div className="card stat">
           <div className="big">
