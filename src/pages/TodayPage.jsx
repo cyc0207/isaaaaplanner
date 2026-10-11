@@ -9,6 +9,7 @@ import {
 import { todayMealLeft, weekDrinkLeft, livingSummary } from '../lib/budget.js';
 import { ENGLISH_HABIT } from '../lib/seed.js';
 import { TarotCard } from './TarotPage.jsx';
+import BalancePie from '../components/BalancePie.jsx';
 import { Ring, TaskRow, money, deadlineLabel } from '../components/ui.jsx';
 import { AddTaskForm, TaskEditor, useTaskActions, payFixed } from '../components/editors.jsx';
 import { useNextMeal, useEatMeal, MealChoices } from './FoodPage.jsx';
@@ -81,6 +82,7 @@ export default function TodayPage() {
           <div className="big">{englishStreak} 天</div>
           <div className="label">英文連續</div>
         </div>
+        <BalancePie day={day} />
         <div className={`card stat ${meal.left < 0 ? 'over' : ''}`}>
           <div className="big">{money(meal.left)}</div>
           <div className="label">今天餐費還剩</div>

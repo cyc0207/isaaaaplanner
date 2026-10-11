@@ -581,7 +581,10 @@ textarea.paste { width: 100%; font-family: ui-monospace, 'Courier New', monospac
 .tarot-card.swords { --band: var(--muted); }
 .tarot-card.pentacles { --band: #b8741a; }
 .tarot-inner { height: 100%; border: 1.5px solid var(--line); border-top: 14px solid var(--band); border-radius: 6px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.35rem; padding: 0.5rem 0.3rem; text-align: center; }
-.tarot-inner.reversed { transform: rotate(180deg); }
+.tarot-inner.reversed { border-top-width: 1.5px; border-bottom: 14px solid var(--band); position: relative; }
+.tarot-inner.reversed .tarot-num { transform: rotate(180deg); }
+.tarot-rev { font-size: 0.72rem; font-weight: 900; color: var(--surface-solid); background: var(--line); border-radius: 999px; padding: 0 0.5rem; }
+.tarot-card.small .tarot-rev { font-size: 0.6rem; padding: 0 0.3rem; }
 .tarot-num { font-family: var(--pixel); font-size: 2.4rem; line-height: 1; color: var(--band); }
 .tarot-mark { font-size: 0.72rem; font-weight: 700; border: 1.5px solid var(--line); border-radius: 999px; padding: 0 0.5rem; }
 .tarot-name { font-family: 'Noto Serif TC', var(--sans); font-weight: 900; font-size: 1.35rem; line-height: 1.2; }
@@ -648,3 +651,26 @@ textarea.paste { width: 100%; font-family: ui-monospace, 'Courier New', monospac
 .main .cat-grid .cat.hl { outline: 3px solid var(--accent); outline-offset: 2px; }
 .drink-reasons { margin: 0.3rem 0 0; padding-left: 1.1rem; font-size: 0.85rem; }
 .drink-reasons li { margin: 0.1rem 0; }
+
+/* 首頁目前餘額甜甜圈 */
+.dash .balance-pie { display: flex; align-items: center; gap: 0.9rem; color: inherit; text-decoration: none; }
+.balance-pie .pie { flex: none; }
+.pie-bg { stroke: var(--soft-line); }
+.pie-seg { stroke-linecap: butt; }
+.pie-rim { stroke: var(--line); stroke-width: 2; }
+.pie-total { font-family: var(--pixel); font-size: 20px; fill: var(--text); }
+@media (max-width: 379px) { .dash .balance-pie { gap: 0.5rem; } .balance-pie .pie { width: 104px; height: 104px; } .pie-legend li { font-size: 0.78rem; } }
+.pie-cap { font-size: 11px; font-weight: 700; fill: var(--muted); }
+.pie-side { flex: 1; min-width: 0; }
+.pie-legend { list-style: none; margin: 0.3rem 0 0; padding: 0; display: flex; flex-direction: column; gap: 0.25rem; }
+.pie-legend li { display: grid; grid-template-columns: 0.8rem minmax(2.6em, 1fr) auto; gap: 0.4rem; align-items: center; font-size: 0.85rem; }
+.pie-legend i { width: 0.8rem; height: 0.8rem; border: 1.5px solid var(--line); border-radius: 3px; }
+.pie-legend .pie-neg { background: transparent; border-style: dashed; }
+.pie-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; }
+.pie-amt { font-family: var(--pixel); font-size: 1.1rem; white-space: nowrap; text-align: right; }
+.pie-amt small { font-family: var(--sans); font-size: 0.7rem; color: var(--muted); margin-left: 0.3rem; display: inline-block; min-width: 2.2em; }
+.pie-legend li.neg .pie-amt { color: var(--over); }
+.pie-note { margin: 0.35rem 0 0; font-size: 0.75rem; color: var(--muted); }
+/* 逆位：色帶移到下面、數字倒過來，牌名保持正的才看得懂 */
+.tarot-card.small .tarot-inner.reversed { border-top-width: 1.5px; border-bottom-width: 7px; }
+.tarot-spread:not(.small) .tarot-inner.reversed { border-top-width: 1.5px; border-bottom-width: 10px; }

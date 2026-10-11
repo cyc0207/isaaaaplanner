@@ -173,3 +173,29 @@ export function orderCategories(categories, now = new Date()) {
   const second = categories.includes(DRINK) && meal !== DRINK ? [DRINK] : [];
   return [...first, ...second, ...categories.filter((c) => c !== meal && c !== DRINK)];
 }
+
+// 首頁圓餅圖：各帳戶目前餘額的占比；沒有正餘額的帳戶時改看本月支出分類
+export const PIE_MAX = 5;
+function topSlices(rows) {
+  const sorted = rows.filter((r) => r.value > 0).sort((a, b) => b.value - a.value);
+  if (sorted.length <= PIE_MAX) return sorted;
+  const rest = sorted.slice(PIE_MAX - 1);
+  return [...sorted.slice(0, PIE_MAX - 1), { id: '_other', name: `其他 ${rest.length} 項`, value: rest.reduce((s, r) => s + r.value, 0) }];
+}
+
+export function balancePie(accounts, expenses, day) {
+  const bal = accountBalances(accounts, expenses.filter((e) => e.date <= day));
+  const rows = accounts.map((a) => ({ id: a.id, name: a.name, value: bal[a.id] || 0 }));
+  const total = rows.reduce((s, r) => s + r.value, 0);
+  const negative = rows.filter((r) => r.value < 0);
+  const slices = topSlices(rows);
+  if (slices.length) return { mode: 'balance', total, slices, negative };
+  const { from } = monthRange(monthKey(day));
+  const byCat = {};
+  for (const e of expenses) {
+    if (e.type !== 'expense' || e.date < from || e.date > day) continue;
+    byCat[e.category || '未分類'] = (byCat[e.category || '未分類'] || 0) + (Number(e.amount) || 0);
+  }
+  const catRows = Object.entries(byCat).map(([name, value]) => ({ id: name, name, value }));
+  return { mode: 'spend', total: catRows.reduce((s, r) => s + r.value, 0), slices: topSlices(catRows), negative: [] };
+}

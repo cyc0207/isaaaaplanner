@@ -156,6 +156,7 @@ export function TarotFace({ draw, small, fresh }) {
   return (
     <div className={`tarot-card ${small ? 'small' : ''} ${fresh ? 'fresh' : ''} ${c.arcana === 'major' ? 'major' : c.suit}`} aria-label={`${c.zh} ${draw.reversed ? '逆位' : '正位'}`}>
       <div className={`tarot-inner ${draw.reversed ? 'reversed' : ''}`}>
+        {draw.reversed && <span className="tarot-rev">逆位</span>}
         <span className="tarot-num">{cardNumeral(c)}</span>
         <span className="tarot-mark">{c.arcana === 'major' ? '大阿爾克那' : c.suitZh}</span>
         <strong className="tarot-name">{c.zh}</strong>
