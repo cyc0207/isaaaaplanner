@@ -69,7 +69,7 @@ export default function Wheel({ options, onResult }) {
           return (
             <g key={s.meal.id}>
               <path d={segs.length === 1 ? '' : arc(c, c, r, s.start, s.end)} fill={COLORS[i % COLORS.length]} className="wheel-seg" />
-              <text x={x} y={y} transform={`rotate(${mid} ${x} ${y})`} textAnchor="middle" dominantBaseline="central" className="wheel-text">
+              <text x={x} y={y} transform={`rotate(${mid < 180 ? mid - 90 : mid + 90} ${x} ${y})`} textAnchor="middle" dominantBaseline="central" className="wheel-text">
                 {short(s.meal.name)}
               </text>
             </g>

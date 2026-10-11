@@ -402,8 +402,9 @@ input:focus, select:focus { outline: 3px solid var(--mustard); outline-offset: 1
 .seg button.on { background: var(--accent); color: #fff8ec; box-shadow: none; }
 input.amount { font-size: 2.6rem !important; color: var(--text); }
 .cat { border: 2px solid var(--line); border-radius: 12px; background: var(--surface-solid); color: var(--text); font-weight: 700; box-shadow: 2px 2px 0 var(--shadow); }
-.cat:first-child { background: var(--mustard); color: #2b2118; }
-.cat:nth-child(2) { background: var(--accent-soft); color: #2b2118; }
+.main .cat-grid .cat:first-child { background: var(--mustard); color: #2b2118; }
+.main .cat-grid .cat:nth-child(2) { background: var(--accent-soft); color: #2b2118; }
+.main .sheet .cat-grid .cat:nth-child(n) { background: var(--surface-solid); color: var(--text); border-color: var(--line); }
 .bar { height: 12px; border: 2px solid var(--line); border-radius: 999px; background: var(--surface-solid); }
 .bar-fill { background: var(--teal); }
 .bar-row.warn .bar-fill { background: var(--mustard); }
