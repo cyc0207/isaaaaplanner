@@ -9,9 +9,10 @@ const useEmulator = import.meta.env.VITE_USE_EMULATOR === '1';
 
 const config = { ...firebaseConfig };
 if (useEmulator) config.projectId = 'demo-planner';
-// 放在 Firebase Hosting 上時，登入流程走同一個網域，手機 Safari 才不會被擋
+// 登入流程走網站自己的網域（Vercel 把 /__/auth/ 轉給 Firebase，見 vercel.json），
+// 手機 Safari、Chrome 的儲存分區才不會讓重新導向登入失去狀態（missing initial state）
 const host = typeof window !== 'undefined' ? window.location.hostname : '';
-if (host.endsWith('.web.app') || host.endsWith('.firebaseapp.com')) config.authDomain = host;
+if (host.endsWith('.web.app') || host.endsWith('.firebaseapp.com') || host.endsWith('.vercel.app')) config.authDomain = host;
 
 export const app = initializeApp(config);
 export const auth = getAuth(app);
