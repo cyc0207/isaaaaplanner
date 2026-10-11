@@ -235,3 +235,76 @@ export function tarotPrompt({ day, cards, tasks = [], habitsDone = [], energy = 
   );
   return lines.join('\n');
 }
+
+// ── 回顧：哪類牌出現時，行動比較常做到 ──
+export const GROUPS = [
+  ['major', '大阿爾克那'],
+  ['wands', '權杖'],
+  ['cups', '聖杯'],
+  ['swords', '寶劍'],
+  ['pentacles', '錢幣'],
+];
+const groupKey = (c) => (c.arcana === 'major' ? 'major' : c.suit);
+const rate = (done, total) => (total ? Math.round((done / total) * 100) : null);
+
+// 以「現在」那張牌分組（舊版單張紀錄就用那一張）
+export function tarotReview(log, from, to) {
+  const days = Object.keys(log).filter((d) => d >= from && d <= to).sort();
+  const groups = Object.fromEntries(GROUPS.map(([k, name]) => [k, { key: k, name, days: 0, done: 0, total: 0 }]));
+  const orient = { up: { name: '正位', days: 0, done: 0, total: 0 }, rev: { name: '逆位', days: 0, done: 0, total: 0 } };
+  const seen = {};
+  let done = 0;
+  let total = 0;
+  let withActions = 0;
+  for (const d of days) {
+    const cards = spreadOf(log[d]);
+    const now = cards[1] || cards[0];
+    const c = now && cardById(now.cardId);
+    if (!c) continue;
+    cards.forEach((x) => { seen[x.cardId] = (seen[x.cardId] || 0) + 1; });
+    const acts = log[d].actions || [];
+    const dn = acts.filter((a) => a.done).length;
+    if (acts.length) withActions++;
+    done += dn;
+    total += acts.length;
+    for (const g of [groups[groupKey(c)], orient[now.reversed ? 'rev' : 'up']]) {
+      g.days++;
+      g.done += dn;
+      g.total += acts.length;
+    }
+  }
+  const list = Object.values(groups).filter((g) => g.days).map((g) => ({ ...g, rate: rate(g.done, g.total) }));
+  const rated = list.filter((g) => g.total >= 2).sort((a, b) => b.rate - a.rate);
+  const top = Object.entries(seen).sort((a, b) => b[1] - a[1]).filter(([, n]) => n > 1).slice(0, 3)
+    .map(([id, n]) => ({ card: cardById(id), count: n }));
+  return {
+    from, to, drawn: days.length, withActions, done, total, rate: rate(done, total),
+    groups: list,
+    orient: Object.values(orient).filter((o) => o.days).map((o) => ({ ...o, rate: rate(o.done, o.total) })),
+    best: rated.length >= 2 && rated[0].rate > rated[rated.length - 1].rate ? rated[0] : null,
+    worst: rated.length >= 2 && rated[0].rate > rated[rated.length - 1].rate ? rated[rated.length - 1] : null,
+    repeats: top,
+  };
+}
+
+export function reviewPrompt(r, label) {
+  const lines = [
+    `這是我${label}（${r.from} 到 ${r.to}）的每日塔羅和行動紀錄，請幫我做一個回顧。`,
+    '',
+    `- 抽牌 ${r.drawn} 天，有寫行動的 ${r.withActions} 天`,
+    `- 行動完成 ${r.done}/${r.total}${r.rate !== null ? `（${r.rate}%）` : ''}`,
+  ];
+  if (r.groups.length) {
+    lines.push('', '「現在」那張牌的類別和行動完成率：');
+    r.groups.forEach((g) => lines.push(`- ${g.name}：${g.days} 天，行動 ${g.done}/${g.total}${g.rate !== null ? `（${g.rate}%）` : ''}`));
+  }
+  if (r.orient.length) lines.push(`- ${r.orient.map((o) => `${o.name} ${o.days} 天，完成 ${o.rate ?? '-'}%`).join('；')}`);
+  if (r.repeats.length) lines.push('', `重複出現的牌：${r.repeats.map((x) => `${x.card.zh}（${x.count} 次）`).join('、')}`);
+  lines.push(
+    '',
+    '請用繁體中文，分成兩段：',
+    '【回顧】這段時間我的行動習慣有什麼模式？哪種狀態下比較做得到、哪種比較做不到？（塔羅只當作反思的線索，不要說成預測）',
+    '【下週的調整】給我 2～3 個具體的小調整，讓行動更容易做到。',
+  );
+  return lines.join('\n');
+}

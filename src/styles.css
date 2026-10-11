@@ -635,3 +635,13 @@ textarea.paste { width: 100%; font-family: ui-monospace, 'Courier New', monospac
 .tarot-act-home { display: flex; flex-direction: column; gap: 0.35rem; margin: 0.2rem 0 0.6rem; }
 .ta-hist { font-size: 0.82rem; color: var(--muted); }
 .ta-hist.done { color: var(--teal); }
+/* 塔羅回顧 */
+.review-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; margin: 0.6rem 0; }
+.review-stats .big { font-family: var(--pixel); font-size: 1.7rem; line-height: 1.05; }
+.review-insight { background: var(--warn-soft); border: 2px solid var(--line); border-left: 8px solid var(--mustard); border-radius: 12px; padding: 0.55rem 0.75rem; margin: 0.4rem 0 0.6rem; }
+.review-bars { list-style: none; margin: 0.4rem 0 0.6rem; padding: 0; display: flex; flex-direction: column; gap: 0.4rem; }
+.review-bars li { display: grid; grid-template-columns: 5.5rem 1fr auto auto; gap: 0.5rem; align-items: center; }
+.rb-name { font-weight: 700; font-size: 0.88rem; }
+.rb-bar { height: 12px; border: 2px solid var(--line); border-radius: 999px; background: var(--surface-solid); overflow: hidden; }
+.rb-bar span { display: block; height: 100%; background: var(--teal); }
+.rb-num { font-size: 1.05rem; }

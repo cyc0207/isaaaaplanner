@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useData } from '../data.jsx';
-import { today, shortLabel } from '../lib/date.js';
+import { today, shortLabel, addDays, weekStart } from '../lib/date.js';
 import { todayTasks } from '../lib/plan.js';
-import { cardById, cardNumeral, drawSpread, meaningOf, tarotPrompt, tarotStreak, spreadOf, isFullSpread, POSITIONS, suggestActions, parseActions, MAX_ACTIONS } from '../lib/tarot.js';
+import { cardById, cardNumeral, drawSpread, meaningOf, tarotPrompt, tarotStreak, spreadOf, isFullSpread, POSITIONS, suggestActions, parseActions, MAX_ACTIONS, tarotReview, reviewPrompt } from '../lib/tarot.js';
 
 // 抽牌：每天一次「過去・現在・未來」三張，存在 tarotLog/{日期}，換裝置也是同一組
 function useTarot(day) {
@@ -216,6 +216,60 @@ export function TarotCard({ day }) {
   );
 }
 
+// 回顧：本週或近 4 週，看「現在」是哪類牌時，行動比較常做到
+function Review({ log, day }) {
+  const [range, setRange] = useState('week');
+  const from = range === 'week' ? weekStart(day) : addDays(day, -27);
+  const r = tarotReview(log, from, day);
+  const name = range === 'week' ? '這週' : '近 4 週';
+  return (
+    <section className="section tarot-review">
+      <h2>回顧</h2>
+      <div className="seg two">
+        <button className={range === 'week' ? 'on' : ''} onClick={() => setRange('week')}>
+          本週
+        </button>
+        <button className={range === 'month' ? 'on' : ''} onClick={() => setRange('month')}>
+          近 4 週
+        </button>
+      </div>
+      {!r.drawn ? (
+        <p className="muted small">{name}還沒有抽牌紀錄。</p>
+      ) : (
+        <>
+          <div className="review-stats">
+            <div className="card stat"><div className="big">{r.drawn}</div><div className="label">抽牌天數</div></div>
+            <div className="card stat"><div className="big">{r.done}/{r.total}</div><div className="label">行動完成</div></div>
+            <div className="card stat"><div className="big">{r.rate === null ? '-' : `${r.rate}%`}</div><div className="label">完成率</div></div>
+          </div>
+          {r.best ? (
+            <p className="review-insight">
+              {name}「現在」是<strong>{r.best.name}</strong>的日子，行動完成 {r.best.rate}%；是<strong>{r.worst.name}</strong>的日子只有 {r.worst.rate}%。
+            </p>
+          ) : (
+            <p className="muted small">{r.total ? '再多累積幾天，就看得出哪類牌的日子比較做得到。' : '還沒有寫行動。在上面「今天的行動」挑一件來做，回顧才有東西看。'}</p>
+          )}
+          <h3>「現在」那張牌的類別</h3>
+          <ul className="review-bars">
+            {r.groups.map((g) => (
+              <li key={g.key}>
+                <span className="rb-name">{g.name}</span>
+                <span className="rb-bar"><span style={{ width: `${g.rate ?? 0}%` }} /></span>
+                <span className="rb-num num">{g.total ? `${g.done}/${g.total}` : '沒寫行動'}</span>
+                <span className="muted small rb-days">{g.days} 天</span>
+              </li>
+            ))}
+          </ul>
+          {r.orient.length > 0 && <p className="muted small">{r.orient.map((o) => `${o.name} ${o.days} 天，完成 ${o.rate === null ? '-' : `${o.rate}%`}`).join('；')}</p>}
+          {r.repeats.length > 0 && <p className="muted small">重複出現：{r.repeats.map((x) => `${x.card.zh} ${x.count} 次`).join('、')}</p>}
+          <CopyButton text={reviewPrompt(r, name)} className="btn" />
+          <p className="muted small">複製後貼給 AI，請它幫你看行動的模式和下週可以怎麼調整。</p>
+        </>
+      )}
+    </section>
+  );
+}
+
 export default function TarotPage() {
   const day = today();
   const { cards, doDraw, prompt, tarotLog, actions, setActions, suggestions } = useTarot(day);
@@ -272,6 +326,8 @@ export default function TarotPage() {
           </>
         )}
       </section>
+
+      <Review log={tarotLog} day={day} />
 
       <section className="section">
         <h2>之前抽到的</h2>

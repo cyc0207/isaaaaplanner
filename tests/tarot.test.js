@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { CARDS, drawSpread, cardById, meaningOf, tarotPrompt, tarotStreak, cardNumeral, spreadOf, isFullSpread, suggestActions, parseActions } from '../src/lib/tarot.js';
+import { CARDS, drawSpread, cardById, meaningOf, tarotPrompt, tarotStreak, cardNumeral, spreadOf, isFullSpread, suggestActions, parseActions, tarotReview, reviewPrompt } from '../src/lib/tarot.js';
 
 describe('每日塔羅', () => {
   it('78 張、id 不重複、每張都有正逆位牌義', () => {
@@ -67,5 +67,35 @@ describe('塔羅：今天的行動', () => {
     expect(p.indexOf('【今天的行動建議】')).toBeGreaterThan(p.indexOf('【牌義解讀】'));
     expect(p).toContain('不要說成一定會發生的預測');
     expect(p).toContain('- [ ]');
+  });
+});
+
+describe('塔羅：回顧', () => {
+  const log = {
+    '2026-10-05': { cards: [{ cardId: 'major-0' }, { cardId: 'cups-2', reversed: false }, { cardId: 'major-3' }], actions: [{ text: 'a', done: true }, { text: 'b', done: true }] },
+    '2026-10-06': { cards: [{ cardId: 'major-1' }, { cardId: 'cups-5', reversed: true }, { cardId: 'major-0' }], actions: [{ text: 'a', done: true }, { text: 'b', done: false }] },
+    '2026-10-07': { cards: [{ cardId: 'major-2' }, { cardId: 'swords-9', reversed: false }, { cardId: 'major-4' }], actions: [{ text: 'a', done: false }, { text: 'b', done: false }] },
+    '2026-10-08': { cardId: 'wands-1', reversed: false },
+    '2026-09-01': { cards: [{ cardId: 'major-5' }, { cardId: 'cups-1' }, { cardId: 'major-6' }], actions: [{ text: 'x', done: true }] },
+  };
+  it('依現在那張牌分組，只算範圍內', () => {
+    const r = tarotReview(log, '2026-10-05', '2026-10-11');
+    expect(r.drawn).toBe(4);
+    expect(r.withActions).toBe(3);
+    expect([r.done, r.total, r.rate]).toEqual([3, 6, 50]);
+    const cups = r.groups.find((g) => g.key === 'cups');
+    expect([cups.days, cups.done, cups.total, cups.rate]).toEqual([2, 3, 4, 75]);
+    expect(r.groups.find((g) => g.key === 'wands').rate).toBe(null);
+    expect(r.best.name).toBe('聖杯');
+    expect(r.worst.name).toBe('寶劍');
+    expect(r.repeats[0].card.zh).toBe('愚者');
+    expect(r.orient.find((o) => o.name === '逆位').days).toBe(1);
+  });
+  it('回顧 prompt 有統計和兩段', () => {
+    const p = reviewPrompt(tarotReview(log, '2026-10-05', '2026-10-11'), '這週');
+    expect(p).toContain('行動完成 3/6（50%）');
+    expect(p).toContain('聖杯：2 天，行動 3/4（75%）');
+    expect(p).toContain('【回顧】');
+    expect(p).toContain('【下週的調整】');
   });
 });
