@@ -12,6 +12,7 @@ const COLLECTIONS = [
   'habitLog', 'englishLog', 'energyLog', 'reconcileLog', 'monthClose', 'allocations', 'settings',
   // 第二版
   'meals', 'weightLog', 'budgetChanges', 'inbox',
+  'tarotLog',
   // Gmail 收進來的信、英文卡片
   'mail', 'englishItems',
 ];
@@ -133,6 +134,7 @@ export function DataProvider({ uid, children }) {
       meals: (raw.meals || []).slice().sort((a, b) => (a.createdAtMs || 0) - (b.createdAtMs || 0)),
       mealsById: byId('meals'),
       weightLog: byId('weightLog'),
+      tarotLog: byId('tarotLog'),
       budgetChanges: (raw.budgetChanges || []).slice().sort((a, b) => (b.createdAtMs || 0) - (a.createdAtMs || 0)),
       inbox: raw.inbox || [],
       mail: (raw.mail || []).slice().sort((a, b) => (b.ts || 0) - (a.ts || 0)),

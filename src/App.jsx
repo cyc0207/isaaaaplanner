@@ -12,6 +12,7 @@ import ReconcilePage from './pages/ReconcilePage.jsx';
 import MonthClosePage from './pages/MonthClosePage.jsx';
 import SettingsPage from './pages/SettingsPage.jsx';
 import FoodPage from './pages/FoodPage.jsx';
+import TarotPage from './pages/TarotPage.jsx';
 import InboxPage from './pages/InboxPage.jsx';
 import EnglishPage from './pages/EnglishPage.jsx';
 import { Icon } from './components/ui.jsx';
@@ -103,6 +104,7 @@ function Shell({ user }) {
             <Route path="/close/:month" element={<MonthClosePage />} />
             <Route path="/settings" element={<SettingsPage user={user} />} />
             <Route path="/food" element={<FoodPage />} />
+            <Route path="/tarot" element={<TarotPage />} />
             <Route path="/inbox" element={<InboxPage />} />
             <Route path="/english" element={<EnglishPage />} />
             <Route path="*" element={<TodayPage />} />
