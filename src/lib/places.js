@@ -8,7 +8,7 @@ const FIELDS = [
 ].join(',');
 // 只用很早就有的類型；新類型（例如台灣菜）會包含在 restaurant 裡
 const INCLUDED = ['restaurant', 'meal_takeaway', 'cafe', 'bakery'];
-export const RADII = [500, 1000, 2000];
+export const RADII = [500, 1000, 2000, 5000];
 const CACHE_MS = 6 * 60 * 60 * 1000;
 
 // 依類型分組；越前面越優先
@@ -96,7 +96,8 @@ export async function searchNearby({ key, latitude, longitude, radius }) {
     body: JSON.stringify({
       includedTypes: INCLUDED,
       maxResultCount: 20,
-      rankPreference: 'DISTANCE',
+      // 一次最多 20 家：近的範圍抓最近的，遠的範圍抓比較熱門的，才不會都擠在旁邊
+      rankPreference: radius <= 1000 ? 'DISTANCE' : 'POPULARITY',
       languageCode: 'zh-TW',
       regionCode: 'TW',
       locationRestriction: { circle: { center: { latitude, longitude }, radius } },
