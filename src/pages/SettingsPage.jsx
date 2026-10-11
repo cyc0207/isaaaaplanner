@@ -105,6 +105,7 @@ function BudgetSettings() {
   const [ratioText, setRatioText] = useState(() => formatRatio(budget.investment?.ratio ?? 1 / 3));
   const [newCat, setNewCat] = useState({ name: '', kind: 'perMonth' });
   const [newExpCat, setNewExpCat] = useState('');
+  const [newIncCat, setNewIncCat] = useState('');
   const [saved, setSaved] = useState(false);
   const mKey = monthKey(today());
 
@@ -118,6 +119,7 @@ function BudgetSettings() {
   const setCat = (i, patch) => setB({ ...b, categories: b.categories.map((c, j) => (j === i ? { ...c, ...patch } : c)) });
   const num = (v) => Number(String(v).replace(/[^\d]/g, '')) || 0;
   const expenseCats = b.expenseCategories || DEFAULT_EXPENSE_CATEGORIES;
+  const incomeCats = b.incomeCategories || DEFAULT_INCOME_CATEGORIES;
 
   const save = () => {
     if (!canSave) return;
@@ -253,7 +255,20 @@ function BudgetSettings() {
           <input className="grow" value={newExpCat} onChange={(e) => setNewExpCat(e.target.value)} placeholder="新增支出分類" />
           <button className="btn" onClick={() => { const n = newExpCat.trim(); if (n && !expenseCats.includes(n)) setB({ ...b, expenseCategories: [...expenseCats, n] }); setNewExpCat(''); }}>新增</button>
         </div>
-        <p className="muted small">收入分類：{(b.incomeCategories || DEFAULT_INCOME_CATEGORIES).join('、')}。沒有設預算的分類，花費都從彈性扣。</p>
+        <h3>收入分類</h3>
+        <div className="chips-edit">
+          {incomeCats.map((c) => (
+            <span key={c} className="chip">
+              {c}
+              <button aria-label={`移除 ${c}`} onClick={() => setB({ ...b, incomeCategories: incomeCats.filter((x) => x !== c) })}>×</button>
+            </span>
+          ))}
+        </div>
+        <div className="row gap">
+          <input className="grow" value={newIncCat} onChange={(e) => setNewIncCat(e.target.value)} placeholder="新增收入分類" />
+          <button className="btn" onClick={() => { const n = newIncCat.trim(); if (n && !incomeCats.includes(n)) setB({ ...b, incomeCategories: [...incomeCats, n] }); setNewIncCat(''); }}>新增</button>
+        </div>
+        <p className="muted small">記帳時也可以直接按「＋ 新增」加分類。沒有設預算的分類，花費都從彈性扣。改完記得按下面的儲存。</p>
 
         {cb.over > 0 && <p className="hint over">分類預算加總 {money(cb.sum)}，超過生活費 {money(cb.over)}，不能儲存。</p>}
         {ratioBad && <p className="hint over">比例看不懂，請輸入 1/3、25% 或 0.3。</p>}

@@ -571,3 +571,5 @@ textarea.paste { width: 100%; font-family: ui-monospace, 'Courier New', monospac
 .inbox-import td:nth-child(4) { min-width: 9rem; }
 .inbox-import td:nth-child(3), .inbox-import td:nth-child(6) { white-space: nowrap; }
 .ring-sub { font-size: 0.75rem; color: #2b2118; opacity: 0.8; white-space: nowrap; }
+.main .cat-grid .cat.cat-add { background: transparent; border-style: dashed; color: var(--muted); box-shadow: none; }
+.toast .link { white-space: nowrap; }

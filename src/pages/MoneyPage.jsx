@@ -81,6 +81,7 @@ function QuickAdd() {
   const data = useData();
   const { api, budget, defaultAccount, confirmClosed, expenses, accountsById } = data;
   const [type, setType] = useState('expense');
+  const addCategory = useAddCategory();
   const [amount, setAmount] = useState('');
   const [account, setAccount] = useState(defaultAccount);
   const [toAccount, setToAccount] = useState('');
@@ -224,6 +225,9 @@ function QuickAdd() {
                 {c}
               </button>
             ))}
+            <button className="cat cat-add" onClick={() => addCategory(type)}>
+              ＋ 新增
+            </button>
           </div>
           </>
         )}
@@ -307,10 +311,24 @@ export function ExpenseList({ items, onEdit, accountsById }) {
   );
 }
 
+// 記帳時直接新增分類：存進設定，回傳新分類名稱（取消就回傳 null）
+export function useAddCategory() {
+  const { api, budget } = useData();
+  return (type) => {
+    const name = (window.prompt(type === 'income' ? '新增收入分類（例：家教、發票中獎）' : '新增支出分類（例：寵物、醫療）') || '').trim();
+    if (!name) return null;
+    const field = type === 'income' ? 'incomeCategories' : 'expenseCategories';
+    const list = budget[field] || (type === 'income' ? DEFAULT_INCOME_CATEGORIES : DEFAULT_EXPENSE_CATEGORIES);
+    if (!list.includes(name)) api.set('settings/budget', { [field]: [...list, name] });
+    return name;
+  };
+}
+
 export function ExpenseEditor({ expense, onClose }) {
   const data = useData();
   const { api, budget, confirmClosed } = data;
   const [f, setF] = useState({ ...expense, amount: String(expense.amount) });
+  const addCategory = useAddCategory();
   const cats =
     f.type === 'income' ? budget.incomeCategories || DEFAULT_INCOME_CATEGORIES : [...(budget.expenseCategories || DEFAULT_EXPENSE_CATEGORIES), ADJUST, '固定支出'];
   const save = (e) => {
@@ -346,10 +364,18 @@ export function ExpenseEditor({ expense, onClose }) {
         {f.type !== 'transfer' && (
           <label>
             分類
-            <select value={f.category} onChange={(e) => setF({ ...f, category: e.target.value })}>
+            <select
+              value={f.category}
+              onChange={(e) => {
+                if (e.target.value !== '__new') return setF({ ...f, category: e.target.value });
+                const name = addCategory(f.type);
+                if (name) setF({ ...f, category: name });
+              }}
+            >
               {[...new Set([f.category, ...cats])].filter(Boolean).map((c) => (
                 <option key={c}>{c}</option>
               ))}
+              <option value="__new">＋ 新增分類…</option>
             </select>
           </label>
         )}
