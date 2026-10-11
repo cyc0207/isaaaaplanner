@@ -129,16 +129,26 @@ export const cardById = (id) => CARDS.find((c) => c.id === id) || null;
 const ROMAN = ['0', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII', 'XIII', 'XIV', 'XV', 'XVI', 'XVII', 'XVIII', 'XIX', 'XX', 'XXI'];
 export const cardNumeral = (c) => (c.arcana === 'major' ? ROMAN[c.num] : c.num === 1 ? 'A' : c.num <= 10 ? String(c.num) : ['P', 'N', 'Q', 'K'][c.num - 11]);
 
-// rnd1、rnd2 在 [0, 1)
-export function drawCard(rnd1 = Math.random(), rnd2 = Math.random()) {
-  const card = CARDS[Math.floor(rnd1 * CARDS.length) % CARDS.length];
-  return { cardId: card.id, reversed: rnd2 < 0.5 };
-}
-
 export function meaningOf(draw) {
   const c = cardById(draw.cardId);
   return c ? (draw.reversed ? c.rev : c.up) : '';
 }
+
+export const POSITIONS = ['過去', '現在', '未來'];
+
+// 三張牌陣：不重複，各自正逆位。rnd 是回傳 [0, 1) 的函式
+export function drawSpread(rnd = Math.random) {
+  const pool = CARDS.map((c) => c.id);
+  return POSITIONS.map(() => {
+    const i = Math.floor(rnd() * pool.length) % pool.length;
+    const [cardId] = pool.splice(i, 1);
+    return { cardId, reversed: rnd() < 0.5 };
+  });
+}
+
+// 舊紀錄只有一張牌；新紀錄是 cards 陣列
+export const spreadOf = (entry) => (!entry ? [] : Array.isArray(entry.cards) ? entry.cards : entry.cardId ? [entry] : []);
+export const isFullSpread = (entry) => spreadOf(entry).length === POSITIONS.length;
 
 // 連續抽了幾天：今天還沒抽不算斷
 export function tarotStreak(log, day) {
@@ -152,17 +162,17 @@ export function tarotStreak(log, day) {
 }
 
 // 複製給 AI 的 prompt
-export function tarotPrompt({ day, draw, tasks = [], habitsDone = [], energy = null }) {
-  const c = cardById(draw.cardId);
-  if (!c) return '';
-  const pos = draw.reversed ? '逆位' : '正位';
-  const lines = [
-    `我今天（${day}）抽了一張偉特塔羅牌，請幫我解讀。`,
-    '',
-    `牌：${c.zh}（${c.en}）・${pos}`,
-    `類別：${c.arcana === 'major' ? '大阿爾克那' : `小阿爾克那・${c.suitZh}（${c.theme}）`}`,
-    `關鍵字：${draw.reversed ? c.rev : c.up}`,
-  ];
+export function tarotPrompt({ day, cards, tasks = [], habitsDone = [], energy = null }) {
+  const list = cards.map((d, i) => ({ d, c: cardById(d.cardId), pos: POSITIONS[i] })).filter((x) => x.c);
+  if (!list.length) return '';
+  const lines = [`我今天（${day}）用「過去・現在・未來」三張牌陣抽了偉特塔羅牌，請幫我解讀。`, ''];
+  list.forEach(({ d, c, pos }, i) => {
+    lines.push(
+      `${i + 1}. ${pos}：${c.zh}（${c.en}）・${d.reversed ? '逆位' : '正位'}`,
+      `   類別：${c.arcana === 'major' ? '大阿爾克那' : `小阿爾克那・${c.suitZh}（${c.theme}）`}`,
+      `   關鍵字：${d.reversed ? c.rev : c.up}`,
+    );
+  });
   if (tasks.length || energy || habitsDone.length) {
     lines.push('', '我今天的狀況：');
     if (tasks.length) lines.push(`- 今天要做的事：${tasks.join('、')}`);
@@ -172,9 +182,10 @@ export function tarotPrompt({ day, draw, tasks = [], habitsDone = [], energy = n
   lines.push(
     '',
     '請用繁體中文回答：',
-    '1. 這張牌在這個位置的意思（3～4 句）',
-    '2. 對照我今天的事，給我一個具體可以做的小提醒',
-    '3. 一句今天可以對自己說的話',
+    '1. 三張牌各自在這個位置的意思（每張 2～3 句）',
+    '2. 把三張連起來看，從過去到未來在說什麼',
+    '3. 對照我今天的事，給我一個具體可以做的小提醒',
+    '4. 一句今天可以對自己說的話',
     '不用太玄，像朋友聊天一樣就好。',
   );
   return lines.join('\n');

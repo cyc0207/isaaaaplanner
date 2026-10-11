@@ -608,3 +608,18 @@ textarea.paste { width: 100%; font-family: ui-monospace, 'Courier New', monospac
   .tarot-card.fresh { animation: tarot-flip 0.5s ease-out; }
   @keyframes tarot-flip { from { transform: rotateY(90deg); } to { transform: rotateY(0); } }
 }
+/* 三張牌陣 */
+.tarot-spread { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.6rem; }
+.tarot-slot { margin: 0; display: flex; flex-direction: column; align-items: center; gap: 0.35rem; min-width: 0; }
+.tarot-slot figcaption { font-weight: 900; font-size: 0.8rem; background: var(--text); color: var(--bg); padding: 0 0.55rem; border-radius: 3px; }
+.tarot-spread:not(.small) .tarot-card { width: 100%; max-width: 160px; padding: 5px; }
+.tarot-spread:not(.small) .tarot-inner { border-top-width: 10px; padding: 0.4rem 0.2rem; }
+.tarot-spread:not(.small) .tarot-num { font-size: 1.9rem; }
+.tarot-spread:not(.small) .tarot-name { font-size: 1.05rem; }
+.tarot-spread:not(.small) .tarot-en { font-size: 0.58rem; }
+.tarot-lines { list-style: none; margin: 0.6rem 0; padding: 0; display: flex; flex-direction: column; gap: 0.45rem; }
+.tarot-lines li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.1rem 0.45rem; }
+.tarot-lines.big li { flex-direction: column; align-items: flex-start; background: var(--surface-solid); border: 2px solid var(--line); border-radius: 12px; box-shadow: 2px 2px 0 var(--shadow); padding: 0.55rem 0.75rem; }
+.tarot-pos { font-size: 0.72rem; font-weight: 700; color: var(--teal); border: 1.5px solid var(--teal); border-radius: 999px; padding: 0 0.45rem; }
+.tarot-home-card { padding: 0.8rem; }
+.tarot-hist-cards { display: flex; flex-direction: column; gap: 0.1rem; }

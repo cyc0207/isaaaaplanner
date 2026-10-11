@@ -3,26 +3,42 @@ import { Link } from 'react-router-dom';
 import { useData } from '../data.jsx';
 import { today, shortLabel } from '../lib/date.js';
 import { todayTasks } from '../lib/plan.js';
-import { cardById, cardNumeral, drawCard, meaningOf, tarotPrompt, tarotStreak } from '../lib/tarot.js';
+import { cardById, cardNumeral, drawSpread, meaningOf, tarotPrompt, tarotStreak, spreadOf, isFullSpread, POSITIONS } from '../lib/tarot.js';
 
-// 抽牌：每天一張，存在 tarotLog/{日期}，換裝置也是同一張
+// 抽牌：每天一次「過去・現在・未來」三張，存在 tarotLog/{日期}，換裝置也是同一組
 function useTarot(day) {
   const { tarotLog, api, tasks, habits, habitLog, energyLog } = useData();
-  const draw = tarotLog[day] || null;
+  // 舊版一天只抽一張；那天可以重抽成三張
+  const cards = isFullSpread(tarotLog[day]) ? spreadOf(tarotLog[day]) : null;
   const doDraw = () => {
-    if (tarotLog[day]) return;
-    api.set(`tarotLog/${day}`, { ...drawCard(), createdAtMs: Date.now() }, false);
+    if (isFullSpread(tarotLog[day])) return;
+    api.set(`tarotLog/${day}`, { cards: drawSpread(), createdAtMs: Date.now() }, false);
   };
-  const prompt = draw
+  const prompt = cards
     ? tarotPrompt({
         day,
-        draw,
+        cards,
         tasks: todayTasks(tasks, day).shown.filter((t) => !t.done).map((t) => t.title),
         habitsDone: habits.filter((h) => habitLog[day]?.done?.[h]),
         energy: energyLog[day]?.level || null,
       })
     : '';
-  return { draw, doDraw, prompt, tarotLog };
+  return { cards, doDraw, prompt, tarotLog };
+}
+
+const label = (d) => `${cardById(d.cardId)?.zh || ''}・${d.reversed ? '逆位' : '正位'}`;
+
+function Spread({ cards, small, fresh }) {
+  return (
+    <div className={`tarot-spread ${small ? 'small' : ''}`}>
+      {cards.map((d, i) => (
+        <figure key={i} className="tarot-slot">
+          <figcaption>{POSITIONS[i]}</figcaption>
+          <TarotFace draw={d} small={small} fresh={fresh} />
+        </figure>
+      ))}
+    </div>
+  );
 }
 
 async function copyText(text) {
@@ -77,37 +93,39 @@ export function TarotFace({ draw, small, fresh }) {
 
 // 首頁的小卡
 export function TarotCard({ day }) {
-  const { draw, doDraw, prompt } = useTarot(day);
+  const { cards, doDraw, prompt } = useTarot(day);
   const [fresh, setFresh] = useState(false);
-  if (!draw) {
+  if (!cards) {
     return (
       <section className="section tarot-home">
         <div className="row between">
           <h2>今日塔羅</h2>
           <button className="btn small primary" onClick={() => { setFresh(true); doDraw(); }}>
-            抽今天的牌
+            抽今天的三張牌
           </button>
         </div>
       </section>
     );
   }
-  const c = cardById(draw.cardId);
   return (
     <section className="section tarot-home">
       <h2>今日塔羅</h2>
-      <div className="tarot-row card">
-        <TarotFace draw={draw} small fresh={fresh} />
-        <div className="tarot-text">
-          <strong>
-            {c?.zh}・{draw.reversed ? '逆位' : '正位'}
-          </strong>
-          <span className="muted small">{meaningOf(draw)}</span>
-          <div className="row gap wrap">
-            <CopyButton text={prompt} className="btn small primary" />
-            <Link to="/tarot" className="btn small">
-              看紀錄
-            </Link>
-          </div>
+      <div className="card tarot-home-card">
+        <Spread cards={cards} small fresh={fresh} />
+        <ul className="tarot-lines">
+          {cards.map((d, i) => (
+            <li key={i}>
+              <span className="tarot-pos">{POSITIONS[i]}</span>
+              <strong>{label(d)}</strong>
+              <span className="muted small">{meaningOf(d)}</span>
+            </li>
+          ))}
+        </ul>
+        <div className="row gap wrap">
+          <CopyButton text={prompt} className="btn small primary" />
+          <Link to="/tarot" className="btn small">
+            看紀錄
+          </Link>
         </div>
       </div>
     </section>
@@ -116,14 +134,13 @@ export function TarotCard({ day }) {
 
 export default function TarotPage() {
   const day = today();
-  const { draw, doDraw, prompt, tarotLog } = useTarot(day);
+  const { cards, doDraw, prompt, tarotLog } = useTarot(day);
   const [fresh, setFresh] = useState(false);
   const history = Object.entries(tarotLog)
     .filter(([d]) => d < day)
     .sort((a, b) => b[0].localeCompare(a[0]))
     .slice(0, 30);
   const streak = tarotStreak(tarotLog, day);
-  const c = draw && cardById(draw.cardId);
 
   return (
     <div className="page">
@@ -133,23 +150,29 @@ export default function TarotPage() {
       </header>
 
       <section className="section tarot-main">
-        {!draw ? (
+        {!cards ? (
           <>
-            <button className="tarot-back" onClick={() => { setFresh(true); doDraw(); }} aria-label="抽今天的牌">
-              <span>抽一張</span>
+            <button className="tarot-back" onClick={() => { setFresh(true); doDraw(); }} aria-label="抽今天的三張牌">
+              <span>抽三張</span>
             </button>
-            <p className="muted center">一天一張，明天才能再抽。</p>
+            <p className="muted center">過去・現在・未來，一天抽一次，明天才能再抽。</p>
           </>
         ) : (
           <>
-            <TarotFace draw={draw} fresh={fresh} />
-            <div className="tarot-result center">
-              <strong>
-                {c?.zh}・{draw.reversed ? '逆位' : '正位'}
-              </strong>
-              <p>{meaningOf(draw)}</p>
-              {c?.arcana === 'minor' && <p className="muted small">{c.suitZh}：{c.theme}</p>}
-            </div>
+            <Spread cards={cards} fresh={fresh} />
+            <ul className="tarot-lines big">
+              {cards.map((d, i) => {
+                const c = cardById(d.cardId);
+                return (
+                  <li key={i}>
+                    <span className="tarot-pos">{POSITIONS[i]}</span>
+                    <strong>{label(d)}</strong>
+                    <span>{meaningOf(d)}</span>
+                    {c?.arcana === 'minor' && <span className="muted small">{c.suitZh}：{c.theme}</span>}
+                  </li>
+                );
+              })}
+            </ul>
             <CopyButton text={prompt} className="btn primary big wide" />
             <details className="tarot-prompt">
               <summary>看看會複製什麼</summary>
@@ -165,15 +188,17 @@ export default function TarotPage() {
         {!history.length && <p className="muted small">還沒有紀錄。</p>}
         <ul className="list">
           {history.map(([d, h]) => {
-            const hc = cardById(h.cardId);
+            const list = spreadOf(h);
             return (
               <li key={d} className="ledger-row tarot-hist">
                 <span className="ld-date">{shortLabel(d)}</span>
-                <span>
-                  <strong>
-                    {hc?.zh}・{h.reversed ? '逆位' : '正位'}
-                  </strong>
-                  <span className="muted small"> {meaningOf(h)}</span>
+                <span className="tarot-hist-cards">
+                  {list.map((x, i) => (
+                    <span key={i}>
+                      {list.length > 1 && <span className="muted small">{POSITIONS[i]} </span>}
+                      <strong>{label(x)}</strong>
+                    </span>
+                  ))}
                 </span>
               </li>
             );
