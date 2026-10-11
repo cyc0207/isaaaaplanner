@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { CARDS, drawSpread, cardById, meaningOf, tarotPrompt, tarotStreak, cardNumeral, spreadOf, isFullSpread } from '../src/lib/tarot.js';
+import { CARDS, drawSpread, cardById, meaningOf, tarotPrompt, tarotStreak, cardNumeral, spreadOf, isFullSpread, suggestActions, parseActions } from '../src/lib/tarot.js';
 
 describe('每日塔羅', () => {
   it('78 張、id 不重複、每張都有正逆位牌義', () => {
@@ -45,5 +45,27 @@ describe('每日塔羅', () => {
     const log = { '2026-10-10': {}, '2026-10-11': {} };
     expect(tarotStreak(log, '2026-10-12')).toBe(2);
     expect(tarotStreak({ ...log, '2026-10-12': {} }, '2026-10-12')).toBe(3);
+  });
+});
+
+describe('塔羅：今天的行動', () => {
+  it('依「現在」那張牌和今天第一件任務給建議，逆位先給緩一點的', () => {
+    const up = suggestActions([{ cardId: 'major-0', reversed: false }, { cardId: 'wands-3', reversed: false }, { cardId: 'cups-1', reversed: false }], ['寫報告']);
+    expect(up[0]).toBe('先動手做「寫報告」的第一步，計時 10 分鐘');
+    const rev = suggestActions([{ cardId: 'major-0', reversed: false }, { cardId: 'swords-3', reversed: true }, { cardId: 'cups-1', reversed: false }], []);
+    expect(rev[0]).toBe('想太多時把念頭寫下來，寫完就先放著');
+    expect(rev.length).toBeLessThanOrEqual(3);
+    expect(rev.some((t) => t.includes('今天最重要的事'))).toBe(true);
+  });
+  it('貼上 AI 的清單會拆成行動', () => {
+    expect(parseActions('【今天的行動建議】\n- [ ] 寫 10 分鐘報告\n- [x] 喝水\n1. 散步\n\n')).toEqual(['寫 10 分鐘報告', '喝水', '散步']);
+    expect(parseActions('a\nb\nc\nd')).toHaveLength(3);
+  });
+  it('prompt 把牌義解讀和行動建議分開，註明不是預測', () => {
+    const p = tarotPrompt({ day: '2026-10-12', cards: [{ cardId: 'major-17', reversed: false }, { cardId: 'wands-3', reversed: true }, { cardId: 'cups-1', reversed: false }] });
+    expect(p.indexOf('【牌義解讀】')).toBeGreaterThan(0);
+    expect(p.indexOf('【今天的行動建議】')).toBeGreaterThan(p.indexOf('【牌義解讀】'));
+    expect(p).toContain('不要說成一定會發生的預測');
+    expect(p).toContain('- [ ]');
   });
 });

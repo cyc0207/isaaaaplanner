@@ -161,6 +161,45 @@ export function tarotStreak(log, day) {
   return n;
 }
 
+// 把「現在」那張牌轉成今天做得到的小行動（10～15 分鐘）。這是反思的提示，不是預測。
+const ACTIONS = {
+  wands: [(t) => `先動手做「${t}」的第一步，計時 10 分鐘`, (t) => `把「${t}」拆成 3 個小步驟，今天只做第一個`],
+  cups: [(t) => `做「${t}」之前，先寫一句現在的心情`, () => '今天主動傳一則訊息關心一個人'],
+  swords: [(t) => `把「${t}」卡住的地方寫成 3 點，挑一點先解決`, () => '今天有一件想說的話，用一句話清楚講出來'],
+  pentacles: [(t) => `整理「${t}」需要的資料或工具，放在同一個地方`, () => '今天記完每一筆帳，睡前看一次本週花費'],
+  major: [(t) => `今天只專心把「${t}」做完，其他先放著`, () => '睡前寫三行：今天做到什麼、卡在哪、明天第一步'],
+};
+const SOFT = {
+  wands: () => '能量不夠時先休息 10 分鐘，再決定要不要做',
+  cups: () => '今天留 15 分鐘給自己，不排任何事',
+  swords: () => '想太多時把念頭寫下來，寫完就先放著',
+  pentacles: () => '今天不買計畫外的東西，想買的先寫下來',
+  major: () => '今天少做一件事，把最重要的那件做好',
+};
+
+export const MAX_ACTIONS = 3;
+
+// 貼上的文字拆成行動：一行一個，去掉「- [ ]」「1.」之類的開頭
+export function parseActions(text) {
+  return text
+    .split(/\r?\n/)
+    .map((l) => l.replace(/^\s*(?:[-*•]\s*)?(?:\[[ xX]?\]\s*)?(?:\d+[.、)]\s*)?/, '').trim())
+    .filter((l) => l && !/^【.*】$/.test(l))
+    .slice(0, MAX_ACTIONS);
+}
+
+export function suggestActions(cards, tasks = []) {
+  const now = cards[1] || cards[0];
+  const c = now && cardById(now.cardId);
+  if (!c) return [];
+  const key = c.arcana === 'major' ? 'major' : c.suit;
+  const first = tasks[0] || '今天最重要的事';
+  const task = first.length > 14 ? `${first.slice(0, 13)}…` : first;
+  const out = ACTIONS[key].map((f) => f(task));
+  if (now.reversed) out.unshift(SOFT[key]());
+  return [...new Set(out)].slice(0, 3);
+}
+
 // 複製給 AI 的 prompt
 export function tarotPrompt({ day, cards, tasks = [], habitsDone = [], energy = null }) {
   const list = cards.map((d, i) => ({ d, c: cardById(d.cardId), pos: POSITIONS[i] })).filter((x) => x.c);
@@ -181,11 +220,17 @@ export function tarotPrompt({ day, cards, tasks = [], habitsDone = [], energy = 
   }
   lines.push(
     '',
-    '請用繁體中文回答：',
-    '1. 三張牌各自在這個位置的意思（每張 2～3 句）',
-    '2. 把三張連起來看，從過去到未來在說什麼',
-    '3. 對照我今天的事，給我一個具體可以做的小提醒',
-    '4. 一句今天可以對自己說的話',
+    '請用繁體中文，分成兩段回答，兩段不要混在一起：',
+    '',
+    '【牌義解讀】',
+    '- 三張牌各自在這個位置的意思（每張 2～3 句），再把三張連起來看。',
+    '- 把它當成今天反思的提示，不要說成一定會發生的預測。',
+    '',
+    '【今天的行動建議】',
+    '- 對照我今天要做的事和精力，給 1～3 個今天做得到的具體行動，每個 15 分鐘內可以完成。',
+    '- 用「- [ ] 行動」的格式列出來，方便我複製回 App 打勾。',
+    '- 最後一句今天可以對自己說的話。',
+    '',
     '不用太玄，像朋友聊天一樣就好。',
   );
   return lines.join('\n');

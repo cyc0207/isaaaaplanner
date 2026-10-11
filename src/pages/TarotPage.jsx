@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { useData } from '../data.jsx';
 import { today, shortLabel } from '../lib/date.js';
 import { todayTasks } from '../lib/plan.js';
-import { cardById, cardNumeral, drawSpread, meaningOf, tarotPrompt, tarotStreak, spreadOf, isFullSpread, POSITIONS } from '../lib/tarot.js';
+import { cardById, cardNumeral, drawSpread, meaningOf, tarotPrompt, tarotStreak, spreadOf, isFullSpread, POSITIONS, suggestActions, parseActions, MAX_ACTIONS } from '../lib/tarot.js';
 
 // 抽牌：每天一次「過去・現在・未來」三張，存在 tarotLog/{日期}，換裝置也是同一組
 function useTarot(day) {
@@ -14,19 +14,93 @@ function useTarot(day) {
     if (isFullSpread(tarotLog[day])) return;
     api.set(`tarotLog/${day}`, { cards: drawSpread(), createdAtMs: Date.now() }, false);
   };
+  const openTasks = todayTasks(tasks, day).shown.filter((t) => !t.done).map((t) => t.title);
+  const actions = tarotLog[day]?.actions || [];
+  const setActions = (list) => api.set(`tarotLog/${day}`, { actions: list });
   const prompt = cards
     ? tarotPrompt({
         day,
         cards,
-        tasks: todayTasks(tasks, day).shown.filter((t) => !t.done).map((t) => t.title),
+        tasks: openTasks,
         habitsDone: habits.filter((h) => habitLog[day]?.done?.[h]),
         energy: energyLog[day]?.level || null,
       })
     : '';
-  return { cards, doDraw, prompt, tarotLog };
+  return { cards, doDraw, prompt, tarotLog, actions, setActions, suggestions: cards ? suggestActions(cards, openTasks) : [] };
 }
 
 const label = (d) => `${cardById(d.cardId)?.zh || ''}・${d.reversed ? '逆位' : '正位'}`;
+
+// 今天的行動：從建議挑、自己寫，或貼上 AI 回的「- [ ] 行動」，最多 3 個
+function ActionList({ actions, setActions, compact }) {
+  const doneCount = actions.filter((a) => a.done).length;
+  return (
+    <ul className={`tarot-actions ${compact ? 'compact' : ''}`}>
+      {actions.map((a, i) => (
+        <li key={i} className={a.done ? 'done' : ''}>
+          <label className="check">
+            <input
+              type="checkbox"
+              checked={!!a.done}
+              onChange={() => setActions(actions.map((x, j) => (j === i ? { ...x, done: !x.done } : x)))}
+              aria-label={a.text}
+            />
+            <span className="box" />
+          </label>
+          <span className="ta-text">{a.text}</span>
+          {!compact && (
+            <button className="icon-btn" aria-label={`刪除 ${a.text}`} onClick={() => setActions(actions.filter((_, j) => j !== i))}>
+              ×
+            </button>
+          )}
+        </li>
+      ))}
+      {compact && actions.length > 0 && <li className="muted small">完成 {doneCount}/{actions.length}</li>}
+    </ul>
+  );
+}
+
+function ActionEditor({ actions, setActions, suggestions }) {
+  const [text, setText] = useState('');
+  const full = actions.length >= MAX_ACTIONS;
+  const add = (items) => {
+    const have = new Set(actions.map((a) => a.text));
+    const next = [...actions, ...items.filter((t) => !have.has(t)).map((t) => ({ text: t, done: false }))].slice(0, MAX_ACTIONS);
+    setActions(next);
+  };
+  const left = suggestions.filter((t) => !actions.some((a) => a.text === t));
+  return (
+    <>
+      <ActionList actions={actions} setActions={setActions} />
+      {!full && left.length > 0 && (
+        <div className="ta-suggest">
+          <div className="muted small">依「現在」那張牌和今天的事，可以試試：</div>
+          {left.map((t) => (
+            <button key={t} className="ta-chip" onClick={() => add([t])}>
+              ＋ {t}
+            </button>
+          ))}
+        </div>
+      )}
+      {!full ? (
+        <form
+          className="row gap"
+          onSubmit={(e) => {
+            e.preventDefault();
+            const items = parseActions(text);
+            if (items.length) add(items);
+            setText('');
+          }}
+        >
+          <textarea className="grow ta-input" rows={2} value={text} onChange={(e) => setText(e.target.value)} placeholder="自己寫一個，或貼上 AI 回的「- [ ] 行動」" />
+          <button className="btn primary">加入</button>
+        </form>
+      ) : (
+        <p className="muted small">今天最多 {MAX_ACTIONS} 個，做完再說。</p>
+      )}
+    </>
+  );
+}
 
 function Spread({ cards, small, fresh }) {
   return (
@@ -93,7 +167,7 @@ export function TarotFace({ draw, small, fresh }) {
 
 // 首頁的小卡
 export function TarotCard({ day }) {
-  const { cards, doDraw, prompt } = useTarot(day);
+  const { cards, doDraw, prompt, actions, setActions } = useTarot(day);
   const [fresh, setFresh] = useState(false);
   if (!cards) {
     return (
@@ -121,6 +195,16 @@ export function TarotCard({ day }) {
             </li>
           ))}
         </ul>
+        <div className="tarot-act-home">
+          <strong className="small">今天的行動</strong>
+          {actions.length ? (
+            <ActionList actions={actions} setActions={setActions} compact />
+          ) : (
+            <Link to="/tarot" className="link small">
+              把牌義變成一個今天做得到的行動 →
+            </Link>
+          )}
+        </div>
         <div className="row gap wrap">
           <CopyButton text={prompt} className="btn small primary" />
           <Link to="/tarot" className="btn small">
@@ -134,7 +218,7 @@ export function TarotCard({ day }) {
 
 export default function TarotPage() {
   const day = today();
-  const { cards, doDraw, prompt, tarotLog } = useTarot(day);
+  const { cards, doDraw, prompt, tarotLog, actions, setActions, suggestions } = useTarot(day);
   const [fresh, setFresh] = useState(false);
   const history = Object.entries(tarotLog)
     .filter(([d]) => d < day)
@@ -159,6 +243,8 @@ export default function TarotPage() {
           </>
         ) : (
           <>
+            <h2>牌義解讀</h2>
+            <p className="muted small">塔羅是今天反思的提示，不是一定會發生的預測。</p>
             <Spread cards={cards} fresh={fresh} />
             <ul className="tarot-lines big">
               {cards.map((d, i) => {
@@ -173,7 +259,11 @@ export default function TarotPage() {
                 );
               })}
             </ul>
+            <h2>今天的行動</h2>
+            <p className="muted small">挑 1～3 件今天做得到的小事，做完打勾。</p>
+            <ActionEditor actions={actions} setActions={setActions} suggestions={suggestions} />
             <CopyButton text={prompt} className="btn primary big wide" />
+            <p className="muted small center">AI 會分成「牌義解讀」和「今天的行動建議」兩段回答，行動可以貼回上面。</p>
             <details className="tarot-prompt">
               <summary>看看會複製什麼</summary>
               <pre>{prompt}</pre>
@@ -197,6 +287,11 @@ export default function TarotPage() {
                     <span key={i}>
                       {list.length > 1 && <span className="muted small">{POSITIONS[i]} </span>}
                       <strong>{label(x)}</strong>
+                    </span>
+                  ))}
+                  {(h.actions || []).map((a, i) => (
+                    <span key={`a${i}`} className={`ta-hist ${a.done ? 'done' : ''}`}>
+                      {a.done ? '做到' : '沒做'}：{a.text}
                     </span>
                   ))}
                 </span>

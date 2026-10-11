@@ -623,3 +623,15 @@ textarea.paste { width: 100%; font-family: ui-monospace, 'Courier New', monospac
 .tarot-pos { font-size: 0.72rem; font-weight: 700; color: var(--teal); border: 1.5px solid var(--teal); border-radius: 999px; padding: 0 0.45rem; }
 .tarot-home-card { padding: 0.8rem; }
 .tarot-hist-cards { display: flex; flex-direction: column; gap: 0.1rem; }
+/* 塔羅：今天的行動 */
+.tarot-actions { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.4rem; }
+.tarot-actions li:not(.muted) { display: flex; align-items: center; gap: 0.55rem; background: var(--surface-solid); border: 2px solid var(--line); border-radius: 12px; box-shadow: 2px 2px 0 var(--shadow); padding: 0.45rem 0.6rem; }
+.tarot-actions li.done .ta-text { text-decoration: line-through; text-decoration-color: var(--accent); color: var(--muted); }
+.tarot-actions .ta-text { flex: 1; min-width: 0; font-weight: 700; }
+.tarot-actions.compact li:not(.muted) { box-shadow: none; border-width: 1.5px; padding: 0.3rem 0.5rem; }
+.ta-suggest { display: flex; flex-direction: column; align-items: flex-start; gap: 0.35rem; margin: 0.6rem 0; }
+.ta-chip { text-align: left; border: 2px dashed var(--teal); background: transparent; color: var(--text); border-radius: 12px; padding: 0.4rem 0.65rem; font: inherit; font-weight: 700; cursor: pointer; }
+.ta-input { font: inherit; border: 2px solid var(--line); border-radius: 10px; background: var(--surface-solid); padding: 0.45rem 0.6rem; resize: vertical; }
+.tarot-act-home { display: flex; flex-direction: column; gap: 0.35rem; margin: 0.2rem 0 0.6rem; }
+.ta-hist { font-size: 0.82rem; color: var(--muted); }
+.ta-hist.done { color: var(--teal); }
