@@ -1,0 +1,31 @@
+name: 部署到 Firebase
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+      - name: 部署 Hosting 和 Firestore 規則
+        env:
+          SA_KEY: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          if [ -z "$SA_KEY" ]; then
+            echo "還沒設定 FIREBASE_SERVICE_ACCOUNT，跳過部署"
+            exit 0
+          fi
+          echo "$SA_KEY" > "$RUNNER_TEMP/sa.json"
+          export GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/sa.json"
+          npx firebase deploy --only hosting,firestore:rules --project isaplanner-489f0 --non-interactive
+          rm -f "$RUNNER_TEMP/sa.json"
