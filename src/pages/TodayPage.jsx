@@ -330,9 +330,14 @@ function NextMealCard() {
           下一餐吃這個：{nm.tomorrow ? '明天' : ''}
           {nm.slotName}
         </h2>
-        <Link to="/food?wheel=1" className="btn small">
-          轉盤
-        </Link>
+        <span className="row gap">
+          <Link to="/food?tab=snap" className="btn small">
+            拍照打卡
+          </Link>
+          <Link to="/food?wheel=1" className="btn small">
+            轉盤
+          </Link>
+        </span>
       </div>
       <p className="muted small">
         {nm.budgetLeft === null ? '' : `這餐預算剩 ${money(nm.budgetLeft)}`}

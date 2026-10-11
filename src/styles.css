@@ -469,3 +469,49 @@ input.amount { font-size: 2.6rem !important; color: var(--text); }
 .usual-row .btn { box-shadow: 2px 2px 0 var(--shadow); margin-bottom: 3px; }
 .suggestion .strong { font-family: var(--pixel); font-size: 1.25rem; }
 .tabbar { grid-template-columns: repeat(5, 1fr); }
+
+/* 月曆：手機上格子只放日期和色點，字列在下面 */
+.month-wd:nth-child(6), .month-wd:nth-child(7) { color: var(--accent); }
+.month-wd { font-weight: 700; color: var(--text); }
+.mmarks { display: flex; flex-wrap: wrap; gap: 3px; justify-content: center; margin-top: auto; }
+.mmarks i, .month-legend i { display: inline-block; width: 8px; height: 8px; border: 1.5px solid var(--line); }
+.mk-dl { background: var(--accent); border-radius: 2px; }
+.mk-rec { background: var(--teal); border-radius: 50%; }
+.mk-task { background: var(--mustard); border-radius: 50%; }
+.mk-task.done { background: var(--surface-solid); }
+.month-legend { display: flex; gap: 0.9rem; justify-content: center; margin: 0.6rem 0 0.2rem; }
+.month-legend span { display: inline-flex; align-items: center; gap: 0.3rem; }
+.month-cell.past:not(.is-today):not(.sel) .mday { color: var(--muted); }
+.agenda-row { width: 100%; display: grid; grid-template-columns: auto 1fr auto; gap: 0.5rem; align-items: center; text-align: left; padding: 0.55rem 0.7rem; background: var(--surface-solid); border: 2px solid var(--line); border-left: 8px solid var(--accent); border-radius: 12px; box-shadow: 2px 2px 0 var(--shadow); color: var(--text); font: inherit; cursor: pointer; }
+.agenda-row.past { opacity: 0.55; }
+.agenda-row.sel { background: var(--accent-soft); }
+.agenda-row:has(.ag-rec) { border-left-color: var(--teal); }
+.ag-date { font-size: 1.15rem; white-space: nowrap; min-width: 4.6rem; }
+.ag-left { white-space: nowrap; }
+.ag-title { font-weight: 700; min-width: 0; }
+.ag-rec { display: inline-block; font-size: 0.72rem; color: var(--teal); border: 1.5px solid var(--teal); border-radius: 999px; padding: 0 0.4rem; margin-right: 0.35rem; vertical-align: 1px; }
+.month-agenda .list { gap: 0.45rem; }
+@media (max-width: 699px) {
+  .month-grid { gap: 4px; }
+  .month-cell { min-height: 52px; align-items: center; padding: 5px 2px; }
+  .month-cell .mday { font-size: 1.25rem; line-height: 1; }
+  .month-cell .mdl, .month-cell .mrec, .month-cell .mcount { display: none; }
+  .month-cell.has-dl { border-color: var(--accent); }
+}
+@media (min-width: 700px) {
+  .mmarks, .month-legend { display: none; }
+}
+
+/* 食物打卡 */
+.seg.four { grid-template-columns: repeat(4, 1fr); }
+.snap-head { display: flex; align-items: center; justify-content: space-between; gap: 0.8rem; margin-bottom: 0.8rem; }
+.snap-count { font-family: var(--pixel); font-size: 2rem; line-height: 1; color: var(--accent); margin-right: 0.2rem; }
+.snap-head > div { flex: none; white-space: nowrap; }
+.snap-btn { cursor: pointer; white-space: nowrap; width: auto; flex: 0 1 auto; padding-inline: 1.1rem; }
+.snap-day { margin-bottom: 0.9rem; }
+.snap-day h3 { margin-bottom: 0.45rem; }
+.snap-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.snap { position: relative; padding: 0; aspect-ratio: 1; border: 2px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--surface-solid); box-shadow: 2px 2px 0 var(--shadow); cursor: pointer; }
+.snap img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.snap-tag { position: absolute; left: 5px; bottom: 5px; background: var(--text); color: var(--bg); font-size: 0.7rem; font-weight: 700; padding: 0 0.35rem; border-radius: 3px; }
+.snap-preview { width: 100%; max-height: 50vh; object-fit: contain; border: 2px solid var(--line); border-radius: 12px; background: var(--surface-2); display: block; margin-bottom: 0.4rem; }

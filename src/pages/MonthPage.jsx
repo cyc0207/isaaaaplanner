@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useData } from '../data.jsx';
 import { today, monthKey, prevMonthKey, nextMonthKey, daysInMonth, weekday, shortLabel, monthRange } from '../lib/date.js';
 import { occursOn } from '../lib/plan.js';
-import { Icon, TaskRow, DeadlineRow } from '../components/ui.jsx';
+import { Icon, TaskRow, DeadlineRow, deadlineLabel } from '../components/ui.jsx';
 import { AddTaskForm, TaskEditor, DeadlineEditor, useTaskActions } from '../components/editors.jsx';
 
 export default function MonthPage() {
@@ -11,7 +11,8 @@ export default function MonthPage() {
   const [params, setParams] = useSearchParams();
   const t = today();
   const mKey = params.get('m') || monthKey(t);
-  const [selected, setSelected] = useState(null);
+  const [selected, setSelected] = useState(() => (monthKey(t) === mKey ? t : null));
+  const panelRef = useRef(null);
   const [editing, setEditing] = useState(null);
   const [editingDl, setEditingDl] = useState(null);
   const actions = useTaskActions();
@@ -26,11 +27,16 @@ export default function MonthPage() {
   const monthlyRec = recurring.filter((r) => r.rule?.startsWith('monthly'));
 
   const go = (k) => {
-    setSelected(null);
+    setSelected(k === monthKey(t) ? t : null);
     setParams(k === monthKey(t) ? {} : { m: k });
   };
 
   const sel = selected;
+  // 手機上格子太小放不下字：格子只放色點，期限的全名列在月曆下面
+  const agenda = [
+    ...monthDl,
+    ...cells.filter(Boolean).flatMap((d) => monthlyRec.filter((r) => occursOn(r.rule, d)).map((r) => ({ id: `${r.id}:${d}`, date: d, title: r.title, rec: true }))),
+  ].sort((a, b) => a.date.localeCompare(b.date) || (a.rec ? 1 : 0) - (b.rec ? 1 : 0));
   return (
     <div className="page wide-page">
       <header className="page-head">
@@ -64,10 +70,20 @@ export default function MonthPage() {
           return (
             <button
               key={d}
-              className={`month-cell ${d === t ? 'is-today' : ''} ${d === sel ? 'sel' : ''}`}
+              className={`month-cell ${d === t ? 'is-today' : ''} ${d === sel ? 'sel' : ''} ${d < t ? 'past' : ''} ${dl.length ? 'has-dl' : ''}`}
+              aria-label={`${shortLabel(d)}${dl.length ? `，${dl.length} 個期限` : ''}${tk.length ? `，${tk.length} 件任務` : ''}`}
               onClick={() => setSelected(d === sel ? null : d)}
             >
               <span className="mday">{Number(d.slice(8))}</span>
+              {(dl.length > 0 || rec.length > 0 || tk.length > 0) && (
+                <span className="mmarks" aria-hidden="true">
+                  {dl.slice(0, 3).map((x) => (
+                    <i key={x.id} className="mk-dl" />
+                  ))}
+                  {rec.length > 0 && <i className="mk-rec" />}
+                  {tk.length > 0 && <i className={`mk-task ${tk.every((x) => x.done) ? 'done' : ''}`} />}
+                </span>
+              )}
               {dl.map((x) => (
                 <span key={x.id} className="mdl">
                   {x.title}
@@ -88,8 +104,39 @@ export default function MonthPage() {
         })}
       </div>
 
+      <div className="month-legend muted small" aria-hidden="true">
+        <span><i className="mk-dl" />期限</span>
+        <span><i className="mk-rec" />每月固定</span>
+        <span><i className="mk-task" />任務</span>
+      </div>
+
+      <section className="section month-agenda">
+        <h2>這個月的期限</h2>
+        {!agenda.length && <p className="muted small">這個月沒有期限。</p>}
+        <ul className="list">
+          {agenda.map((x) => (
+            <li key={x.id}>
+              <button
+                className={`agenda-row ${x.date < t ? 'past' : ''} ${x.date === sel ? 'sel' : ''}`}
+                onClick={() => {
+                  setSelected(x.date);
+                  setTimeout(() => panelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0);
+                }}
+              >
+                <span className="ag-date num">{shortLabel(x.date)}</span>
+                <span className="ag-title">
+                  {x.rec && <span className="ag-rec">每月</span>}
+                  {x.title}
+                </span>
+                <span className="ag-left muted small">{x.rec ? '' : deadlineLabel(x, t)}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      </section>
+
       {sel && (
-        <section className="section day-panel">
+        <section className="section day-panel" ref={panelRef}>
           <h2>{shortLabel(sel)}</h2>
           <ul className="list">
             {deadlines

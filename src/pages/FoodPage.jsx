@@ -8,9 +8,11 @@ import {
 import { ACTIVITY, latestWeight, calorieTarget, weightTrend, trendLabel } from '../lib/body.js';
 import { money, Sheet } from '../components/ui.jsx';
 import Wheel, { MealLine } from '../components/Wheel.jsx';
+import FoodLog from '../components/FoodLog.jsx';
 
 const TABS = [
   ['next', '下一餐'],
+  ['snap', '打卡'],
   ['list', '常吃清單'],
   ['body', '體重'],
 ];
@@ -31,6 +33,7 @@ export default function FoodPage() {
         ))}
       </div>
       {tab === 'next' && <NextMeal wheel={params.get('wheel') === '1'} />}
+      {tab === 'snap' && <FoodLog />}
       {tab === 'list' && <MealList />}
       {tab === 'body' && <Body />}
     </div>
