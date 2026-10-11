@@ -87,3 +87,30 @@ describe('Gmail', () => {
     expect(guessDeadline('報名截止 2026/09/01', t)).toBe('');
   });
 });
+
+import { buildInboxPreview, normDate } from '../src/lib/inbox.js';
+
+describe('收件匣匯入', () => {
+  it('認得中文類型、修日期、不合法的進度改成預設、重複的不勾', () => {
+    const text = [
+      '```',
+      'kind,title,company,deadline,submitDate,url,status,note',
+      '比賽,創新創業競賽,教育部,2026/11/30,2026-12-15,https://a.tw,要報,',
+      'resume,行銷實習生,某公司,下週五,,not-a-url,亂寫,',
+      'competition,舊比賽,,,,,,',
+      'job?,x,,,,,,',
+      '```',
+    ].join('\n');
+    const p = buildInboxPreview(text, [{ kind: 'competition', title: '舊比賽' }]);
+    expect(p.error).toBeNull();
+    expect(p.rows.map((r) => r.status_)).toEqual(['ok', 'ok', 'duplicate', 'error']);
+    expect(p.rows[0]).toMatchObject({ kind: 'competition', deadline: '2026-11-30', submitDate: '2026-12-15', status: '要報', url: 'https://a.tw' });
+    expect(p.rows[1]).toMatchObject({ kind: 'resume', deadline: '', status: '要投', url: '' });
+    expect(p.rows[1].warnings.length).toBe(1);
+  });
+  it('normDate', () => {
+    expect(normDate('2026年1月5日')).toBe('2026-01-05');
+    expect(normDate('2026-02-30')).toBeNull();
+    expect(normDate('')).toBe('');
+  });
+});

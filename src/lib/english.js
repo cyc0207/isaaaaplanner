@@ -29,10 +29,10 @@ export const splitTags = (s) =>
     .filter(Boolean);
 
 // 從 ChatGPT 貼過來的文字常帶 ``` 和說明文字：只留表頭以後的 CSV
-export function extractCSV(text) {
+export function extractCSV(text, headerRe = /^\s*"?type"?\s*,\s*"?front"?/i) {
   let t = (text || '').replace(/^﻿/, '');
   const lines = t.split(/\r?\n/);
-  const start = lines.findIndex((l) => /^\s*"?type"?\s*,\s*"?front"?/i.test(l));
+  const start = lines.findIndex((l) => headerRe.test(l));
   if (start < 0) return t;
   const rest = lines.slice(start);
   const end = rest.findIndex((l, i) => i > 0 && /^\s*```/.test(l));

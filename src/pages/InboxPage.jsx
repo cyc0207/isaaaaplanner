@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useData } from '../data.jsx';
 import { today, shortLabel } from '../lib/date.js';
-import { KINDS, STATUSES, emptyItem } from '../lib/inbox.js';
+import { KINDS, STATUSES, emptyItem, buildInboxPreview, INBOX_GPT_PROMPT } from '../lib/inbox.js';
 import { Sheet, deadlineLabel } from '../components/ui.jsx';
 import { useGmailSync, SyncButton, QueryEditor } from '../components/Gmail.jsx';
 import { gmailLink } from '../lib/gmail.js';
@@ -14,6 +14,7 @@ const FILTERS = [
   ['resume', '履歷'],
   ['closed', '已結束'],
   ['gmail', 'Gmail'],
+  ['import', '匯入'],
 ];
 const CLOSED = new Set(['放棄', '結果', '完成']);
 
@@ -83,6 +84,8 @@ export default function InboxPage() {
 
       {filter === 'gmail' ? (
         <GmailInbox />
+      ) : filter === 'import' ? (
+        <InboxImport />
       ) : (
         <>
 
@@ -277,6 +280,132 @@ function GmailInbox() {
           </li>
         ))}
       </ul>
+    </div>
+  );
+}
+
+// 從 ChatGPT 匯入：複製 prompt、貼回結果、檢查後丟進收件匣
+const IMPORT_LABEL = { ok: '新的', duplicate: '重複', error: '有錯' };
+
+function InboxImport() {
+  const { inbox, api } = useData();
+  const [text, setText] = useState('');
+  const [preview, setPreview] = useState(null);
+  const [result, setResult] = useState('');
+  const [copied, setCopied] = useState(false);
+
+  const copyPrompt = async () => {
+    try {
+      await navigator.clipboard.writeText(INBOX_GPT_PROMPT);
+      setCopied(true);
+    } catch {
+      window.prompt('複製下面這段', INBOX_GPT_PROMPT);
+    }
+  };
+
+  const check = (raw) => {
+    setResult('');
+    setPreview(buildInboxPreview(raw, inbox));
+  };
+
+  const onFile = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    const raw = await file.text();
+    setText(raw);
+    check(raw);
+  };
+
+  const toggle = (i) =>
+    setPreview({ ...preview, rows: preview.rows.map((r, j) => (j === i && r.status_ !== 'error' ? { ...r, selected: !r.selected } : r)) });
+
+  const confirm = () => {
+    const rows = preview.rows.filter((r) => r.selected && r.status_ !== 'error');
+    const ops = rows.map(({ line, rawKind, status_, errors, warnings, selected, ...data }) => ({ add: 'inbox', data }));
+    for (let i = 0; i < ops.length; i += 400) api.batch(ops.slice(i, i + 400));
+    const skipped = preview.rows.length - rows.length;
+    setResult(`已匯入 ${rows.length} 筆${skipped ? `，略過 ${skipped} 筆` : ''}。有截止日的已經出現在週曆和月曆上。`);
+    setPreview(null);
+    setText('');
+  };
+
+  const counts = preview?.rows.reduce((c, r) => ({ ...c, [r.status_]: (c[r.status_] || 0) + 1 }), {}) || {};
+  const selectedCount = preview?.rows.filter((r) => r.selected).length || 0;
+
+  return (
+    <div className="inbox-import">
+      <section className="section">
+        <h2>1. 請 ChatGPT 整理</h2>
+        <p className="muted small">複製這段貼給 ChatGPT，它會把記得的比賽、實習和工作機會整理成 CSV。</p>
+        <button className="btn" onClick={copyPrompt}>
+          {copied ? '已複製' : '複製 prompt'}
+        </button>
+      </section>
+      <section className="section">
+        <h2>2. 貼上結果</h2>
+        <textarea className="paste" rows={7} value={text} onChange={(e) => setText(e.target.value)} placeholder={'kind,title,company,deadline,submitDate,url,status,note\ncompetition,大專校院創新創業競賽,教育部,2026-11-30,,https://,考慮中,'} />
+        <div className="row gap wrap">
+          <button className="btn primary" onClick={() => check(text)} disabled={!text.trim()}>
+            檢查
+          </button>
+          <label className="btn file-btn">
+            或選 CSV 檔
+            <input type="file" accept=".csv,text/csv,text/plain" onChange={onFile} hidden />
+          </label>
+        </div>
+        {result && <p className="hint ok">{result}</p>}
+        {preview?.error && <p className="hint over">{preview.error}</p>}
+        {preview && !preview.error && (
+          <div className="preview">
+            <p className="small">
+              共 {preview.rows.length} 筆：新的 {counts.ok || 0}、重複 {counts.duplicate || 0}、有錯 {counts.error || 0}
+            </p>
+            <div className="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th></th>
+                    <th>狀態</th>
+                    <th>類型</th>
+                    <th>名稱</th>
+                    <th>截止</th>
+                    <th>進度</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {preview.rows.map((r, i) => (
+                    <tr key={i} className={`st-${r.status_}`}>
+                      <td>
+                        <input type="checkbox" checked={r.selected} disabled={r.status_ === 'error'} onChange={() => toggle(i)} />
+                      </td>
+                      <td>
+                        {r.status_ === 'error' ? r.errors.join('；') : IMPORT_LABEL[r.status_]}
+                        {r.warnings.length > 0 && <div className="small warn-text">{r.warnings.join('；')}</div>}
+                      </td>
+                      <td>{r.status_ === 'error' && !KINDS[r.kind] ? r.rawKind : KINDS[r.kind]}</td>
+                      <td>
+                        {r.title}
+                        {r.company && <span className="muted">・{r.company}</span>}
+                      </td>
+                      <td>{r.deadline ? shortLabel(r.deadline) : ''}</td>
+                      <td>{r.status}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="row gap">
+              <button className="btn primary" onClick={confirm} disabled={!selectedCount}>
+                匯入 {selectedCount} 筆
+              </button>
+              <button className="btn" onClick={() => setPreview(null)}>
+                取消
+              </button>
+            </div>
+          </div>
+        )}
+      </section>
     </div>
   );
 }

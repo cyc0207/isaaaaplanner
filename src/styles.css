@@ -566,3 +566,7 @@ textarea.paste { width: 100%; font-family: ui-monospace, 'Courier New', monospac
 
 /* 首頁：吃什麼的捷徑 */
 .food-shortcuts { display: flex; flex-wrap: wrap; gap: 0.45rem; margin: 0.4rem 0 0.2rem; }
+.warn-text { color: var(--warn); }
+.inbox-import td:nth-child(5) { min-width: 0; white-space: nowrap; }
+.inbox-import td:nth-child(4) { min-width: 9rem; }
+.inbox-import td:nth-child(3), .inbox-import td:nth-child(6) { white-space: nowrap; }
