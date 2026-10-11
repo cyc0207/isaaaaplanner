@@ -4,17 +4,21 @@ import { useData } from '../data.jsx';
 import { today, shortLabel } from '../lib/date.js';
 import { KINDS, STATUSES, emptyItem } from '../lib/inbox.js';
 import { Sheet, deadlineLabel } from '../components/ui.jsx';
+import { useGmailSync, SyncButton, QueryEditor } from '../components/Gmail.jsx';
+import { gmailLink } from '../lib/gmail.js';
+import { auth } from '../firebase.js';
 
 const FILTERS = [
   ['open', '進行中'],
   ['competition', '比賽'],
   ['resume', '履歷'],
   ['closed', '已結束'],
+  ['gmail', 'Gmail'],
 ];
 const CLOSED = new Set(['放棄', '結果', '完成']);
 
 export default function InboxPage() {
-  const { inbox, api } = useData();
+  const { inbox, mail, api } = useData();
   const [params, setParams] = useSearchParams();
   const [filter, setFilter] = useState('open');
   const [editing, setEditing] = useState(null);
@@ -32,6 +36,7 @@ export default function InboxPage() {
     }
   }, [params, inbox, setParams]);
 
+  const newMail = mail.filter((m) => m.box === 'competition' && m.status === 'new').length;
   const shown = inbox
     .filter((it) =>
       filter === 'open' ? !CLOSED.has(it.status) : filter === 'closed' ? CLOSED.has(it.status) : it.kind === filter && !CLOSED.has(it.status),
@@ -71,9 +76,15 @@ export default function InboxPage() {
         {FILTERS.map(([k, l]) => (
           <button key={k} role="tab" aria-selected={filter === k} className={filter === k ? 'on' : ''} onClick={() => setFilter(k)}>
             {l}
+            {k === 'gmail' && newMail > 0 && <span className="count-dot num">{newMail}</span>}
           </button>
         ))}
       </div>
+
+      {filter === 'gmail' ? (
+        <GmailInbox />
+      ) : (
+        <>
 
       {!shown.length && <p className="muted">這裡是空的。</p>}
       <ul className="list">
@@ -98,6 +109,8 @@ export default function InboxPage() {
           </li>
         ))}
       </ul>
+        </>
+      )}
       {editing && <InboxEditor item={editing} onClose={() => setEditing(null)} />}
     </div>
   );
@@ -196,5 +209,74 @@ export function InboxEditor({ item, onClose }) {
         </div>
       </form>
     </Sheet>
+  );
+}
+
+// Gmail 收進來的比賽信：看一眼，決定要不要丟進收件匣
+function GmailInbox() {
+  const { mail, api } = useData();
+  const g = useGmailSync();
+  const [showDone, setShowDone] = useState(false);
+  const email = auth.currentUser?.email;
+  const all = mail.filter((m) => m.box === 'competition');
+  const shown = all.filter((m) => (showDone ? m.status !== 'new' : m.status === 'new'));
+
+  const addToInbox = (m) => {
+    const id = api.add('inbox', {
+      ...emptyItem('competition'),
+      title: m.subject,
+      deadline: m.guess || '',
+      url: gmailLink(m, email),
+      note: `Gmail：${m.from}（${m.date}）`,
+    });
+    api.update(`mail/${m.id}`, { status: 'added', inboxId: id });
+  };
+
+  return (
+    <div className="gmail-box">
+      <div className="card">
+        <SyncButton g={g} />
+        <QueryEditor queries={g.queries} />
+      </div>
+      <div className="row between gmail-head">
+        <span className="muted small">{showDone ? '已處理的信' : `${shown.length} 封還沒看`}</span>
+        <button className="link small" onClick={() => setShowDone(!showDone)}>
+          {showDone ? '看還沒處理的' : '看已處理的'}
+        </button>
+      </div>
+      {!shown.length && <p className="muted">{g.lastSync ? '這裡是空的。' : '按「連結 Gmail」後，符合比賽條件的信會出現在這裡。'}</p>}
+      <ul className="list">
+        {shown.map((m) => (
+          <li key={m.id} className="mail-row">
+            <a className="mail-subject" href={gmailLink(m, email)} target="_blank" rel="noreferrer">
+              {m.subject}
+            </a>
+            <div className="task-meta">
+              <span>{m.from}</span>
+              <span>{m.date}</span>
+              {m.guess && <span className="chip warn">可能截止 {shortLabel(m.guess)}</span>}
+            </div>
+            {m.snippet && <p className="mail-snippet">{m.snippet}</p>}
+            {m.status === 'new' ? (
+              <div className="row gap">
+                <button className="btn small primary" onClick={() => addToInbox(m)}>
+                  丟進收件匣
+                </button>
+                <button className="btn small" onClick={() => api.update(`mail/${m.id}`, { status: 'skipped' })}>
+                  略過
+                </button>
+              </div>
+            ) : (
+              <div className="row gap">
+                <span className="chip">{m.status === 'added' ? '已丟進收件匣' : '已略過'}</span>
+                <button className="link small" onClick={() => api.update(`mail/${m.id}`, { status: 'new' })}>
+                  放回來
+                </button>
+              </div>
+            )}
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }

@@ -468,7 +468,6 @@ input.amount { font-size: 2.6rem !important; color: var(--text); }
 .inbox-row { background: var(--surface-solid); border: 2px solid var(--line); border-radius: 14px; box-shadow: 3px 3px 0 var(--shadow); }
 .usual-row .btn { box-shadow: 2px 2px 0 var(--shadow); margin-bottom: 3px; }
 .suggestion .strong { font-family: var(--pixel); font-size: 1.25rem; }
-.tabbar { grid-template-columns: repeat(5, 1fr); }
 
 /* 月曆：手機上格子只放日期和色點，字列在下面 */
 .month-wd:nth-child(6), .month-wd:nth-child(7) { color: var(--accent); }
@@ -515,3 +514,46 @@ input.amount { font-size: 2.6rem !important; color: var(--text); }
 .snap img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .snap-tag { position: absolute; left: 5px; bottom: 5px; background: var(--text); color: var(--bg); font-size: 0.7rem; font-weight: 700; padding: 0 0.35rem; border-radius: 3px; }
 .snap-preview { width: 100%; max-height: 50vh; object-fit: contain; border: 2px solid var(--line); border-radius: 12px; background: var(--surface-2); display: block; margin-bottom: 0.4rem; }
+.tabbar { grid-template-columns: repeat(6, 1fr); }
+
+/* Gmail 與英文 */
+textarea { font: inherit; color: var(--text); padding: 0.5rem 0.7rem; border: 2px solid var(--line); border-radius: 10px; background: var(--surface-solid); resize: vertical; min-width: 0; }
+textarea:focus { outline: 3px solid var(--mustard); outline-offset: 1px; }
+.form > label textarea { font-size: 1rem; }
+textarea.paste { width: 100%; font-family: ui-monospace, 'Courier New', monospace; font-size: 0.82rem; margin-bottom: 0.5rem; }
+.count-dot { display: inline-block; margin-left: 0.3rem; min-width: 1.3em; padding: 0 0.3em; border-radius: 999px; background: var(--accent); color: #fff8ec; font-size: 1rem; line-height: 1.3; }
+.gmail-box .card, .letters + .card { margin-bottom: 0.8rem; }
+.gmail-sync .hint { margin-bottom: 0; }
+.gmail-queries { margin-top: 0.6rem; }
+.gmail-queries summary { cursor: pointer; font-weight: 700; font-size: 0.88rem; padding: 0.3rem 0; }
+.gmail-queries .form { margin-top: 0.4rem; }
+.gmail-head { margin: 0.2rem 0 0.4rem; }
+.mail-row { display: flex; flex-direction: column; gap: 0.35rem; padding: 0.7rem 0.8rem; background: var(--surface-solid); border: 2px solid var(--line); border-radius: 14px; box-shadow: 3px 3px 0 var(--shadow); }
+.mail-subject { font-weight: 700; color: var(--text); text-decoration: none; overflow-wrap: anywhere; }
+.mail-snippet { margin: 0; font-size: 0.85rem; color: var(--muted); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.letters .mail-row { flex-direction: row; cursor: pointer; }
+.letters .mail-row.unread { border-left-width: 8px; border-left-color: var(--teal); }
+.letters .mail-row.unread .task-title { font-weight: 700; }
+.letter-body { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 1rem; line-height: 1.65; margin: 0.8rem 0 5rem; user-select: text; -webkit-user-select: text; }
+.letter-actions { position: sticky; bottom: 0; padding: 0.6rem 0 calc(0.6rem + env(safe-area-inset-bottom)); background: var(--bg); border-top: 2px solid var(--line); }
+.letter-actions .btn { width: 100%; }
+.empty-eng { display: flex; flex-direction: column; align-items: flex-start; gap: 0.4rem; margin-top: 0.4rem; }
+.empty-eng p { margin: 0; }
+.practice { display: flex; flex-direction: column; gap: 0.8rem; }
+.seg.two-mini { grid-template-columns: repeat(2, auto); font-size: 0.8rem; }
+.seg.two-mini button { padding: 0.3rem 0.7rem; }
+.flash { min-height: 15rem; display: flex; flex-direction: column; gap: 0.6rem; padding: 1rem; background: var(--surface-solid); border: 2px solid var(--line); border-radius: 18px; box-shadow: 5px 5px 0 var(--shadow); cursor: pointer; }
+.flash.flipped { cursor: default; background: var(--warn-soft); }
+.flash-meta { display: flex; flex-wrap: wrap; gap: 0.3rem; }
+.flash-front { font-size: 1.5rem; font-weight: 900; margin: 0.4rem 0; overflow-wrap: anywhere; }
+.flash-tap { margin-top: auto; }
+.flash-back { display: flex; flex-direction: column; gap: 0.5rem; border-top: 2px dashed var(--line); padding-top: 0.6rem; }
+.flash-answer { font-size: 1.15rem; font-weight: 700; color: var(--accent); margin: 0; overflow-wrap: anywhere; }
+.flash-example { margin: 0; font-style: italic; overflow-wrap: anywhere; }
+.flash-btns { margin-top: 0.4rem; }
+.type-chips { display: flex; flex-wrap: wrap; gap: 0.35rem; margin: 0.7rem 0; }
+.chip-btn { border: 2px solid var(--line); border-radius: 999px; background: var(--surface-solid); color: var(--text); font-weight: 700; font-size: 0.82rem; padding: 0.2rem 0.7rem; cursor: pointer; }
+.chip-btn.on { background: var(--teal); color: #fff8ec; }
+.eng-row { padding: 0.6rem 0.8rem; }
+.eng-front { font-weight: 700; }
+.practice .num { font-size: 1.15em; }

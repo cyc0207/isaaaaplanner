@@ -16,6 +16,7 @@ const ICONS = {
   trash: 'M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14',
   plus: 'M12 5v14M5 12h14',
   inbox: 'M3 13h5l2 3h4l2-3h5M5 5h14l2 8v6H3v-6z',
+  english: 'M5 4h11a3 3 0 013 3v13H8a3 3 0 01-3-3zM5 17a3 3 0 013-3h11M9 8h6',
 };
 
 export function Icon({ name, size = 22 }) {

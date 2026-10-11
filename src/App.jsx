@@ -13,6 +13,7 @@ import MonthClosePage from './pages/MonthClosePage.jsx';
 import SettingsPage from './pages/SettingsPage.jsx';
 import FoodPage from './pages/FoodPage.jsx';
 import InboxPage from './pages/InboxPage.jsx';
+import EnglishPage from './pages/EnglishPage.jsx';
 import { Icon } from './components/ui.jsx';
 
 export default function App() {
@@ -103,6 +104,7 @@ function Shell({ user }) {
             <Route path="/settings" element={<SettingsPage user={user} />} />
             <Route path="/food" element={<FoodPage />} />
             <Route path="/inbox" element={<InboxPage />} />
+            <Route path="/english" element={<EnglishPage />} />
             <Route path="*" element={<TodayPage />} />
           </Routes>
         )}
@@ -125,6 +127,10 @@ function Shell({ user }) {
         <NavLink to="/inbox">
           <Icon name="inbox" />
           收件匣
+        </NavLink>
+        <NavLink to="/english">
+          <Icon name="english" />
+          英文
         </NavLink>
       </nav>
       <Link to="/settings" className="gear" aria-label="設定">
