@@ -1,0 +1,29 @@
+﻿type,date,title,project,note
+task,2026-10-12,簡報匯出 PDF，翻第 4、16、25 頁檢查有沒有跑版,育成提案,
+task,2026-10-13,把第 38、39 頁截圖丟群組，請團隊確認內容,育成提案,團隊
+task,2026-10-14,團隊討論 FAQ 第 25 題「畢業後還會繼續嗎」,育成提案,團隊
+task,2026-10-15,開計時器從頭講一遍簡報，記下超時的頁數,育成提案,
+task,2026-10-19,把育成中心的回饋寫進新功能總規劃 MD,DecorateMe,沒有回饋就跳過
+task,2026-10-20,問組員 aqua-genesis-orlando-traffic 那條 tunnel 修好沒,DecorateMe,資服競賽 demo 會用到會員和商品功能
+task,2026-11-06,用手機在正式站跑一遍：登入、臉部分析、渲染、化妝包,DecorateMe,資服競賽決賽前一天
+task,2026-11-04,錄一支完整操作影片當備案,DecorateMe,決賽現場網路掛掉時播放
+task,2026-11-05,確認決賽報到時間、地點、要帶的設備（筆電、充電器、轉接頭）,DecorateMe,決賽 11/07（六）8:00–17:00
+task,2026-11-09,把 Q1–Q10 貼到群組，約開會時間,DecorateMe,團隊；見新功能總規劃第 3 節
+task,2026-11-11,重算 Plus／Pro 每月額度（Q7），帶去開會,DecorateMe,見新功能總規劃 7.3
+task,2026-11-13,排五項差異化功能的優先順序（Q9），帶去開會,DecorateMe,見新功能總規劃第 10 節
+task,2026-11-16,開會決定 Q1–Q10，結果寫回 MD,DecorateMe,團隊
+task,2026-11-18,在 staging 照 SIT 契約書跑一次,DecorateMe,
+task,2026-11-20,Gateway 加上付費會員權限檢查,DecorateMe,
+task,2026-11-23,寫聖誕限定妝容的風格設定，在 staging 渲染 5 張檢查效果,DecorateMe,
+task,2026-11-25,前端加上限定妝容入口，非付費會員顯示鎖住,DecorateMe,
+task,2026-11-27,照 Q10 的決定建立回收單資料表,DecorateMe,
+task,2026-11-30,聖誕妝容在 staging 跑 SIT，手機實測後上正式站,DecorateMe,最晚 12/06
+task,2026-12-02,寫商家帳號登入,DecorateMe,
+task,2026-12-04,寫商家掃碼頁,DecorateMe,
+task,2026-12-07,寫店家折扣券的發放與核銷,DecorateMe,
+task,2026-12-10,寫點數帳本,DecorateMe,
+task,2026-12-14,寫點數換券（含每月上限）,DecorateMe,撞到實習報告可延一週
+task,2026-12-17,在 staging 跑驗收案例 R01–R10,DecorateMe,見新功能總規劃 5.13
+task,2026-12-21,團隊內部演練：自己當店員，從建單跑到核銷,DecorateMe,團隊
+task,2026-12-28,對帳：點數帳本和折扣券的數字要對得起來,DecorateMe,
+deadline,2026-12-06,聖誕限定妝容上正式站,DecorateMe,
