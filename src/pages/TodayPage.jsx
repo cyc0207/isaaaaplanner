@@ -10,6 +10,9 @@ import { todayMealLeft, weekDrinkLeft, livingSummary } from '../lib/budget.js';
 import { ENGLISH_HABIT } from '../lib/seed.js';
 import { Ring, TaskRow, money, deadlineLabel } from '../components/ui.jsx';
 import { AddTaskForm, TaskEditor, useTaskActions, payFixed } from '../components/editors.jsx';
+import { useNextMeal, useEatMeal, MealChoices } from './FoodPage.jsx';
+import { fullSugarCount, kcalToday } from '../lib/meals.js';
+import { latestWeight, needsWeighIn } from '../lib/body.js';
 
 export default function TodayPage() {
   const data = useData();
@@ -29,6 +32,7 @@ export default function TodayPage() {
   const next = nextDeadline(deadlines, day);
   const englishStreak = habitStreak(habitLog, ENGLISH_HABIT, day);
   const full = shown.length >= MAX_TODAY;
+  const kcal = kcalToday(expenses, day);
 
   const moveToToday = (t) => {
     if (full) return window.alert('今天已經有 3 件了：先完成或移到別天');
@@ -82,6 +86,16 @@ export default function TodayPage() {
           <div className="big">{money(living.left)}</div>
           <div className="label">本月生活費還剩・每天 {money(living.perDay)}</div>
         </div>
+        <div className="card stat">
+          <div className="big">{fullSugarCount(expenses, weekDays(day))} 杯</div>
+          <div className="label">本週全糖</div>
+        </div>
+        {kcal > 0 && (
+          <div className="card stat">
+            <div className="big">{kcal}</div>
+            <div className="label">今天已記熱量（大卡）</div>
+          </div>
+        )}
         {next && (
           <div className="card stat wide">
             <div className="big">
@@ -93,6 +107,8 @@ export default function TodayPage() {
           </div>
         )}
       </section>
+
+      <NextMealCard />
 
       <section className="section">
         <h2>今天的三件事</h2>
@@ -199,6 +215,16 @@ function Reminders({ day }) {
     );
   }
 
+  // 有設體重才提醒：每週量一次，週一開始提醒
+  if (data.body && latestWeight(data.weightLog, day) && needsWeighIn(data.weightLog, day)) {
+    items.push(
+      <Link key="weigh" to="/food?tab=body" className="reminder">
+        <strong>這週還沒量體重</strong>
+        <span>→</span>
+      </Link>,
+    );
+  }
+
   const closeMonth = monthToClose(monthClose, day, startMonth);
   if (closeMonth) {
     items.push(
@@ -291,4 +317,39 @@ function Reminders({ day }) {
 
   if (!items.length) return null;
   return <section className="reminders">{items}</section>;
+}
+
+function NextMealCard() {
+  const nm = useNextMeal();
+  const eat = useEatMeal();
+  const [msg, setMsg] = useState('');
+  return (
+    <section className="section">
+      <div className="row between">
+        <h2>
+          下一餐吃這個：{nm.tomorrow ? '明天' : ''}
+          {nm.slotName}
+        </h2>
+        <Link to="/food?wheel=1" className="btn small">
+          轉盤
+        </Link>
+      </div>
+      <p className="muted small">
+        {nm.budgetLeft === null ? '' : `這餐預算剩 ${money(nm.budgetLeft)}`}
+        {nm.kcalLeft !== null && `・熱量還剩 ${Math.max(0, Math.round(nm.kcalLeft))} 大卡`}
+      </p>
+      {msg ? (
+        <p className="hint ok">{msg}</p>
+      ) : (
+        <MealChoices
+          compact
+          nm={nm}
+          onEat={(m) => {
+            eat(m, nm.slot, nm.day);
+            setMsg(`已記：${nm.slotName} ${m.name} ${money(m.price)}`);
+          }}
+        />
+      )}
+    </section>
+  );
 }

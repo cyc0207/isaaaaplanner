@@ -1,0 +1,200 @@
+import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { useData } from '../data.jsx';
+import { today, shortLabel } from '../lib/date.js';
+import { KINDS, STATUSES, emptyItem } from '../lib/inbox.js';
+import { Sheet, deadlineLabel } from '../components/ui.jsx';
+
+const FILTERS = [
+  ['open', '進行中'],
+  ['competition', '比賽'],
+  ['resume', '履歷'],
+  ['closed', '已結束'],
+];
+const CLOSED = new Set(['放棄', '結果', '完成']);
+
+export default function InboxPage() {
+  const { inbox, api } = useData();
+  const [params, setParams] = useSearchParams();
+  const [filter, setFilter] = useState('open');
+  const [editing, setEditing] = useState(null);
+  const [quick, setQuick] = useState('');
+  const [kind, setKind] = useState('competition');
+  const t = today();
+
+  // 從行事曆點進來：直接打開那一筆
+  useEffect(() => {
+    const id = params.get('id');
+    const it = id && inbox.find((x) => x.id === id);
+    if (it) {
+      setEditing(it);
+      setParams({}, { replace: true });
+    }
+  }, [params, inbox, setParams]);
+
+  const shown = inbox
+    .filter((it) =>
+      filter === 'open' ? !CLOSED.has(it.status) : filter === 'closed' ? CLOSED.has(it.status) : it.kind === filter && !CLOSED.has(it.status),
+    )
+    .sort((a, b) => (a.deadline || '9999').localeCompare(b.deadline || '9999'));
+
+  // 快速丟進來：只要名稱，其他之後再補
+  const add = (e) => {
+    e.preventDefault();
+    const title = quick.trim();
+    if (!title) return;
+    api.add('inbox', { ...emptyItem(kind), title });
+    setQuick('');
+  };
+
+  return (
+    <div className="page">
+      <header className="page-head">
+        <h1>收件匣</h1>
+      </header>
+      <form className="quick-inbox card" onSubmit={add}>
+        <div className="seg">
+          {Object.entries(KINDS).map(([k, l]) => (
+            <button type="button" key={k} className={kind === k ? 'on' : ''} onClick={() => setKind(k)}>
+              {l}
+            </button>
+          ))}
+        </div>
+        <div className="row gap">
+          <input className="grow" value={quick} onChange={(e) => setQuick(e.target.value)} placeholder={kind === 'resume' ? '例：某某公司 行銷實習生' : '例：大專校院創新創業競賽'} />
+          <button className="btn primary">丟進來</button>
+        </div>
+        <p className="muted small">先丟進來就好，不用馬上決定。週日排下週時會列出「考慮中」的讓你決定。</p>
+      </form>
+
+      <div className="tabs" role="tablist">
+        {FILTERS.map(([k, l]) => (
+          <button key={k} role="tab" aria-selected={filter === k} className={filter === k ? 'on' : ''} onClick={() => setFilter(k)}>
+            {l}
+          </button>
+        ))}
+      </div>
+
+      {!shown.length && <p className="muted">這裡是空的。</p>}
+      <ul className="list">
+        {shown.map((it) => (
+          <li key={it.id} className="task inbox-row" onClick={() => setEditing(it)}>
+            <div className="task-body">
+              <div className="task-title">
+                {it.title}
+                {it.kind === 'resume' && it.company && <span className="muted">・{it.company}</span>}
+              </div>
+              <div className="task-meta">
+                <span className="chip">{KINDS[it.kind]}</span>
+                <span className={`chip ${it.status === '考慮中' ? 'warn' : ''}`}>{it.status}</span>
+                {it.deadline && (
+                  <span>
+                    截止 {shortLabel(it.deadline)}・{deadlineLabel({ date: it.deadline }, t)}
+                  </span>
+                )}
+                {it.kind === 'competition' && it.canReuseProject && <span className="chip ok">可用現有專題</span>}
+              </div>
+            </div>
+          </li>
+        ))}
+      </ul>
+      {editing && <InboxEditor item={editing} onClose={() => setEditing(null)} />}
+    </div>
+  );
+}
+
+export function InboxEditor({ item, onClose }) {
+  const { api } = useData();
+  const [f, setF] = useState({ ...emptyItem(item.kind), ...item });
+  const statuses = STATUSES[f.kind] || STATUSES.other;
+  const save = (e) => {
+    e.preventDefault();
+    if (!f.title.trim()) return;
+    const { id, createdAt, createdAtMs, ...data } = f;
+    api.update(`inbox/${item.id}`, { ...data, title: f.title.trim(), status: statuses.includes(f.status) ? f.status : statuses[0] });
+    onClose();
+  };
+  return (
+    <Sheet title={KINDS[f.kind]} onClose={onClose}>
+      <form className="form" onSubmit={save}>
+        <label>
+          類型
+          <select value={f.kind} onChange={(e) => setF({ ...f, kind: e.target.value, status: STATUSES[e.target.value][0] })}>
+            {Object.entries(KINDS).map(([k, l]) => (
+              <option key={k} value={k}>
+                {l}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          {f.kind === 'resume' ? '職缺' : '名稱'}
+          <input value={f.title} onChange={(e) => setF({ ...f, title: e.target.value })} />
+        </label>
+        {f.kind === 'resume' && (
+          <label>
+            公司
+            <input value={f.company || ''} onChange={(e) => setF({ ...f, company: e.target.value })} />
+          </label>
+        )}
+        <div className="row gap wrap">
+          <label className="mini">
+            {f.kind === 'competition' ? '報名截止日' : '截止日'}
+            <input type="date" value={f.deadline || ''} onChange={(e) => setF({ ...f, deadline: e.target.value })} />
+          </label>
+          {f.kind === 'competition' && (
+            <label className="mini">
+              繳件日
+              <input type="date" value={f.submitDate || ''} onChange={(e) => setF({ ...f, submitDate: e.target.value })} />
+            </label>
+          )}
+        </div>
+        <label>
+          狀態
+          <select value={f.status} onChange={(e) => setF({ ...f, status: e.target.value })}>
+            {statuses.map((s) => (
+              <option key={s}>{s}</option>
+            ))}
+          </select>
+        </label>
+        {f.kind === 'competition' && (
+          <label className="inline">
+            <input type="checkbox" checked={!!f.canReuseProject} onChange={(e) => setF({ ...f, canReuseProject: e.target.checked })} />
+            可以用現有專題（例：DecorateMe）去投
+          </label>
+        )}
+        <label>
+          連結
+          <input type="url" value={f.url || ''} onChange={(e) => setF({ ...f, url: e.target.value })} placeholder="https://" />
+        </label>
+        {f.url && /^https?:\/\//.test(f.url) && (
+          <a href={f.url} target="_blank" rel="noreferrer" className="link">
+            打開連結 →
+          </a>
+        )}
+        <label>
+          備註
+          <input value={f.note || ''} onChange={(e) => setF({ ...f, note: e.target.value })} />
+        </label>
+        <p className="muted small">有截止日的會自動出現在週曆和月曆上，前一天首頁會提醒。</p>
+        <div className="row gap">
+          <button className="btn primary" type="submit">
+            儲存
+          </button>
+          <button
+            type="button"
+            className="btn danger"
+            onClick={() => {
+              if (window.confirm(`刪除「${item.title}」？`)) {
+                api.remove(`inbox/${item.id}`);
+                onClose();
+              }
+            }}
+          >
+            刪除
+          </button>
+        </div>
+      </form>
+    </Sheet>
+  );
+}

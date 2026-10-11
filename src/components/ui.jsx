@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { today, addDays, weekStart, shortLabel, diffDays } from '../lib/date.js';
 
 export const money = (n) => `${n < 0 ? '−' : ''}$${Math.abs(Math.round(n)).toLocaleString('en-US')}`;
@@ -14,6 +15,7 @@ const ICONS = {
   x: 'M18 6L6 18M6 6l12 12',
   trash: 'M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14',
   plus: 'M12 5v14M5 12h14',
+  inbox: 'M3 13h5l2 3h4l2-3h5M5 5h14l2 8v6H3v-6z',
 };
 
 export function Icon({ name, size = 22 }) {
@@ -166,18 +168,22 @@ export function deadlineLabel(d, day) {
 }
 
 export function DeadlineRow({ d, day, onEdit, onDelete }) {
+  const navigate = useNavigate();
+  // 收件匣的截止日是算出來的，回收件匣改
+  const open = d.fromInbox ? () => navigate(`/inbox?id=${d.inboxId}`) : onEdit ? () => onEdit(d) : undefined;
   return (
     <li className="deadline">
       <span className="dl-dot" />
-      <div className="task-body" onClick={onEdit ? () => onEdit(d) : undefined}>
+      <div className="task-body" onClick={open}>
         <div className="task-title">{d.title}</div>
         <div className="task-meta">
           <span>{deadlineLabel(d, day)}</span>
           {d.project && <span className="chip">{d.project}</span>}
           {d.tentative && <span className="chip warn">日期未定</span>}
+          {d.fromInbox && <span className="chip">收件匣</span>}
         </div>
       </div>
-      {onDelete && (
+      {onDelete && !d.fromInbox && (
         <button className="icon-btn" aria-label="刪除" onClick={() => onDelete(d)}>
           <Icon name="trash" size={18} />
         </button>

@@ -9,7 +9,7 @@ const STATUS_LABEL = { ok: '新的', duplicate: '重複', error: '有錯' };
 
 export default function ImportExport() {
   const data = useData();
-  const { tasks, deadlines, api } = data;
+  const { tasks, ownDeadlines: deadlines, api } = data;
   const [preview, setPreview] = useState(null);
   const [fileName, setFileName] = useState('');
   const [result, setResult] = useState('');

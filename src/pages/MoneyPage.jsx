@@ -4,11 +4,13 @@ import { useData } from '../data.jsx';
 import { today, monthKey, prevMonthKey, nextMonthKey, monthRange, shortLabel, dayInMonth, monthLabel } from '../lib/date.js';
 import {
   orderCategories, DEFAULT_EXPENSE_CATEGORIES, DEFAULT_INCOME_CATEGORIES, accountBalances, budgetProgress,
-  livingSummary, monthTotals, allocation, ADJUST,
+  livingSummary, monthTotals, allocation, ADJUST, DRINK,
 } from '../lib/budget.js';
 import { fixedPaidId } from '../lib/plan.js';
 import { money, Bar, Sheet, Icon } from '../components/ui.jsx';
 import { payFixed } from '../components/editors.jsx';
+import { BudgetSuggestions, BudgetChangeLog } from '../components/Suggestions.jsx';
+import { SUGARS, SIZES, nextMeal, SLOTS, mealExpense } from '../lib/meals.js';
 
 const TABS = [
   ['add', '記一筆'],
@@ -25,9 +27,14 @@ export default function MoneyPage() {
     <div className="page">
       <header className="page-head">
         <h1>記帳</h1>
-        <Link to="/money/reconcile" className="btn small">
-          對帳
-        </Link>
+        <span className="row gap">
+          <Link to="/food" className="btn small">
+            吃什麼
+          </Link>
+          <Link to="/money/reconcile" className="btn small">
+            對帳
+          </Link>
+        </span>
       </header>
       <div className="tabs" role="tablist">
         {TABS.map(([k, l]) => (
@@ -81,7 +88,13 @@ function QuickAdd() {
   const [date, setDate] = useState(today());
   const [toast, setToast] = useState(null);
   const [editing, setEditing] = useState(null);
+  const [drinkPick, setDrinkPick] = useState(false);
+  const [size, setSize] = useState('中');
   const amountRef = useRef(null);
+  // 晚上 9 點後記的多半還是晚餐
+  const nm = nextMeal();
+  const slot = nm.tomorrow ? 'dinner' : nm.slot;
+  const usual = data.meals.filter((m) => (m.slots || []).includes(slot)).slice(0, 6);
 
   useEffect(() => {
     amountRef.current?.focus();
@@ -97,9 +110,14 @@ function QuickAdd() {
   const amt = Math.round(Number(amount));
   const valid = amt > 0;
 
-  const save = (category) => {
+  const save = (category, drink = null) => {
     if (!valid) {
       amountRef.current?.focus();
+      return;
+    }
+    // 飲料多選甜度和大小（甜度按下去就存）
+    if (type === 'expense' && category === DRINK && !drink) {
+      setDrinkPick(true);
       return;
     }
     if (!confirmClosed(date)) return;
@@ -107,12 +125,22 @@ function QuickAdd() {
     if (type === 'transfer' && (!to || to === account)) return;
     const id = api.add('expenses', {
       date, amount: amt, type, category: type === 'transfer' ? '' : category, account, toAccount: to,
-      fixedItemId: null, note: note.trim(),
+      fixedItemId: null, note: note.trim(), ...(drink ? { drink } : {}),
     });
-    setToast({ id, text: type === 'transfer' ? `已轉帳 ${money(amt)}` : `已記：${category} ${money(amt)}` });
+    setDrinkPick(false);
+    setToast({ id, text: type === 'transfer' ? `已轉帳 ${money(amt)}` : `已記：${category}${drink ? `（${drink.size}・${drink.sugar}）` : ''} ${money(amt)}` });
     setAmount('');
     setNote('');
     amountRef.current?.focus();
+  };
+
+  // 從常吃清單記：金額自動帶入
+  const saveMeal = (m) => {
+    if (!confirmClosed(date)) return;
+    const id = api.add('expenses', { ...mealExpense(m, slot, date, account), note: note.trim() || m.name });
+    setToast({ id, text: `已記：${SLOTS[slot]} ${m.name} ${money(m.price)}` });
+    setAmount('');
+    setNote('');
   };
 
   useEffect(() => {
@@ -177,6 +205,19 @@ function QuickAdd() {
             </button>
           </>
         ) : (
+          <>
+          {type === 'expense' && usual.length > 0 && (
+            <div className="usual">
+              <span className="mini">常吃的{SLOTS[slot]}（點一下就記）</span>
+              <div className="usual-row">
+                {usual.map((m) => (
+                  <button key={m.id} className="btn small" onClick={() => saveMeal(m)}>
+                    {m.name} {money(m.price)}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           <div className="cat-grid">
             {cats.map((c) => (
               <button key={c} className="cat" disabled={!valid} onClick={() => save(c)}>
@@ -184,6 +225,7 @@ function QuickAdd() {
               </button>
             ))}
           </div>
+          </>
         )}
         <div className="row gap wrap quick-extra">
           {type !== 'transfer' && (
@@ -199,6 +241,27 @@ function QuickAdd() {
           <input className="grow" value={note} onChange={(e) => setNote(e.target.value)} placeholder="備註（可不填）" />
         </div>
       </section>
+
+      {drinkPick && (
+        <Sheet title={`飲料 ${money(amt)}`} onClose={() => setDrinkPick(false)}>
+          <div className="mini">大小</div>
+          <div className="seg two">
+            {SIZES.map((z) => (
+              <button key={z} className={size === z ? 'on' : ''} onClick={() => setSize(z)}>
+                {z}杯
+              </button>
+            ))}
+          </div>
+          <div className="mini">甜度（按下去就記）</div>
+          <div className="cat-grid">
+            {SUGARS.map((g) => (
+              <button key={g} className="cat" onClick={() => save(DRINK, { sugar: g, size })}>
+                {g}
+              </button>
+            ))}
+          </div>
+        </Sheet>
+      )}
 
       {toast && (
         <div className="toast">
@@ -397,6 +460,9 @@ function Overview() {
     <section className="section">
       <MonthSwitch mKey={mKey} setMKey={setMKey} />
       <MonthSummary mKey={mKey} />
+      <h3>預算建議</h3>
+      <BudgetSuggestions showEmpty />
+      <BudgetChangeLog />
       <h3>這個月的紀錄（{items.length} 筆）</h3>
       <ExpenseList items={items} onEdit={setEditing} accountsById={accountsById} />
       {editing && <ExpenseEditor expense={editing} onClose={() => setEditing(null)} />}

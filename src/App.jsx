@@ -11,6 +11,8 @@ import MoneyPage from './pages/MoneyPage.jsx';
 import ReconcilePage from './pages/ReconcilePage.jsx';
 import MonthClosePage from './pages/MonthClosePage.jsx';
 import SettingsPage from './pages/SettingsPage.jsx';
+import FoodPage from './pages/FoodPage.jsx';
+import InboxPage from './pages/InboxPage.jsx';
 import { Icon } from './components/ui.jsx';
 
 export default function App() {
@@ -99,6 +101,8 @@ function Shell({ user }) {
             <Route path="/money/reconcile" element={<ReconcilePage />} />
             <Route path="/close/:month" element={<MonthClosePage />} />
             <Route path="/settings" element={<SettingsPage user={user} />} />
+            <Route path="/food" element={<FoodPage />} />
+            <Route path="/inbox" element={<InboxPage />} />
             <Route path="*" element={<TodayPage />} />
           </Routes>
         )}
@@ -117,6 +121,10 @@ function Shell({ user }) {
         <NavLink to="/money">
           <Icon name="money" />
           記帳
+        </NavLink>
+        <NavLink to="/inbox">
+          <Icon name="inbox" />
+          收件匣
         </NavLink>
       </nav>
       <Link to="/settings" className="gear" aria-label="設定">

@@ -1,5 +1,6 @@
 import { DEFAULT_BUDGET_CATEGORIES, DEFAULT_EXPENSE_CATEGORIES, DEFAULT_INCOME_CATEGORIES } from './budget.js';
 import { monthKey } from './date.js';
+import { SAMPLE_MEALS } from './meals.js';
 
 export const DEFAULT_HABITS = ['英文 15 分鐘', '記帳', '看清單', '動 10 分鐘'];
 export const ENGLISH_HABIT = '英文 15 分鐘';
@@ -54,6 +55,14 @@ export function seedDocs(day) {
     add(`tasks/seed-${i + 1}`, { title, date: '2026-10-12', project, note: '', done: false, doneAt: null, isToday: false }),
   );
 
-  add('settings/meta', { version: 1, startDate: day, startMonth: monthKey(day) });
+  add('settings/meta', { version: 2, startDate: day, startMonth: monthKey(day) });
   return docs;
+}
+
+// 第二版：常吃清單範例（熱量是約略值，畫面上提示照包裝修改）
+export function v2SeedDocs() {
+  return SAMPLE_MEALS.map(({ id, ...m }, i) => ({
+    path: `meals/${id}`,
+    data: { ...m, isSample: true, createdAtMs: i },
+  }));
 }

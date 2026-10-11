@@ -44,8 +44,8 @@ export function downloadCSV(filename, header, records) {
 }
 
 export const EXPORTS = {
-  task: { label: '任務', header: PLAN_HEADER, build: (d, f, t) => planRecords(d.tasks, d.deadlines, f, t, 'task') },
-  deadline: { label: '期限', header: PLAN_HEADER, build: (d, f, t) => planRecords(d.tasks, d.deadlines, f, t, 'deadline') },
+  task: { label: '任務', header: PLAN_HEADER, build: (d, f, t) => planRecords(d.tasks, d.ownDeadlines, f, t, 'task') },
+  deadline: { label: '期限', header: PLAN_HEADER, build: (d, f, t) => planRecords(d.tasks, d.ownDeadlines, f, t, 'deadline') },
   ledger: { label: '記帳', header: LEDGER_HEADER, build: (d, f, t) => ledgerRecords(d.expenses, d.accountsById, f, t) },
   transfer: { label: '轉帳', header: LEDGER_HEADER, build: (d, f, t) => ledgerRecords(d.expenses, d.accountsById, f, t, true) },
 };

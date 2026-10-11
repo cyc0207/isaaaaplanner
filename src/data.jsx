@@ -3,12 +3,15 @@ import {
   collection, doc, onSnapshot, setDoc, updateDoc, deleteDoc, addDoc, getDoc, writeBatch, serverTimestamp,
 } from 'firebase/firestore';
 import { db } from './firebase.js';
-import { seedDocs } from './lib/seed.js';
+import { seedDocs, v2SeedDocs } from './lib/seed.js';
+import { inboxDeadlines } from './lib/inbox.js';
 import { today, monthKey } from './lib/date.js';
 
 const COLLECTIONS = [
   'tasks', 'deadlines', 'recurring', 'recurringDone', 'expenses', 'accounts', 'fixedItems', 'fixedPaid',
   'habitLog', 'englishLog', 'energyLog', 'reconcileLog', 'monthClose', 'allocations', 'settings',
+  // 第二版
+  'meals', 'weightLog', 'budgetChanges', 'inbox',
 ];
 
 const DataContext = createContext(null);
@@ -19,10 +22,18 @@ export function useData() {
 
 async function seedIfNeeded(uid) {
   const meta = await getDoc(doc(db, 'users', uid, 'settings', 'meta'));
-  if (meta.exists()) return;
+  if (meta.exists()) {
+    // 第一版的使用者：補上第二版的初始資料（常吃清單範例）
+    if ((meta.data().version || 1) >= 2) return;
+    const b = writeBatch(db);
+    v2SeedDocs().forEach(({ path, data }) => b.set(doc(db, 'users', uid, ...path.split('/')), data));
+    b.set(doc(db, 'users', uid, 'settings', 'meta'), { version: 2 }, { merge: true });
+    await b.commit();
+    return;
+  }
   const batch = writeBatch(db);
   const now = Date.now();
-  seedDocs(today()).forEach(({ path, data }, i) => {
+  [...seedDocs(today()), ...v2SeedDocs()].forEach(({ path, data }, i) => {
     const extra = path.startsWith('tasks/') ? { createdAt: serverTimestamp(), createdAtMs: now + i } : {};
     batch.set(doc(db, 'users', uid, ...path.split('/')), { ...data, ...extra });
   });
@@ -95,7 +106,9 @@ export function DataProvider({ uid, children }) {
       clearError: () => setError(null),
       api,
       tasks: raw.tasks || [],
-      deadlines: raw.deadlines || [],
+      // 行事曆用的期限包含收件匣的截止日；匯入匯出只用自己新增的 ownDeadlines
+      deadlines: [...(raw.deadlines || []), ...inboxDeadlines(raw.inbox || [])],
+      ownDeadlines: raw.deadlines || [],
       recurring: raw.recurring || [],
       recurringDone: new Set((raw.recurringDone || []).map((d) => d.id)),
       expenses: raw.expenses || [],
@@ -115,6 +128,13 @@ export function DataProvider({ uid, children }) {
       reconcile: settings.reconcile || { cycle: 'weekly', day: 0, shortcuts: [] },
       habits: settings.habits?.items || [],
       meta: settings.meta || {},
+      meals: (raw.meals || []).slice().sort((a, b) => (a.createdAtMs || 0) - (b.createdAtMs || 0)),
+      mealsById: byId('meals'),
+      weightLog: byId('weightLog'),
+      budgetChanges: (raw.budgetChanges || []).slice().sort((a, b) => (b.createdAtMs || 0) - (a.createdAtMs || 0)),
+      inbox: raw.inbox || [],
+      body: settings.body || null,
+      dismissed: settings.suggest?.dismissed || {},
       // 已結帳的月份，改紀錄前先確認一次
       confirmClosed: (date) => {
         const m = date && monthKey(date);

@@ -5,6 +5,8 @@ import { today, addDays, weekDays, shortLabel } from '../lib/date.js';
 import { weekCompletion, occursOn } from '../lib/plan.js';
 import { Icon, TaskRow, DeadlineRow } from '../components/ui.jsx';
 import { AddTaskForm, TaskEditor, DeadlineEditor, useTaskActions } from '../components/editors.jsx';
+import { BudgetSuggestions } from '../components/Suggestions.jsx';
+import { KINDS, STATUSES, isPending } from '../lib/inbox.js';
 
 export default function WeekPage() {
   const { tasks, deadlines, recurring } = useData();
@@ -52,6 +54,7 @@ export default function WeekPage() {
           回到本週
         </button>
       )}
+      {offset === 1 && <PlanPanel />}
 
       <div className="week-grid">
         {days.map((d) => {
@@ -122,3 +125,44 @@ export default function WeekPage() {
   );
 }
 
+
+// 排下週：先看預算建議，再決定收件匣裡「考慮中」的
+function PlanPanel() {
+  const { inbox, api } = useData();
+  const pending = inbox.filter(isPending);
+  return (
+    <section className="section plan-panel">
+      <h2>排下週</h2>
+      <h3>預算建議</h3>
+      <BudgetSuggestions showEmpty />
+      <h3>收件匣：考慮中（{pending.length}）</h3>
+      {!pending.length && <p className="muted small">沒有要決定的。</p>}
+      <ul className="list">
+        {pending.map((it) => {
+          const [, yes, , no] = STATUSES[it.kind] || STATUSES.other;
+          return (
+            <li key={it.id} className="task">
+              <div className="task-body">
+                <div className="task-title">{it.title}</div>
+                <div className="task-meta">
+                  <span className="chip">{KINDS[it.kind]}</span>
+                  {it.deadline && <span>截止 {shortLabel(it.deadline)}</span>}
+                </div>
+              </div>
+              <div className="task-actions">
+                <button className="btn small primary" onClick={() => api.update(`inbox/${it.id}`, { status: yes })}>
+                  {yes}
+                </button>
+                {no && (
+                  <button className="btn small" onClick={() => api.update(`inbox/${it.id}`, { status: no })}>
+                    {no}
+                  </button>
+                )}
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+}
