@@ -352,6 +352,12 @@ function NextMealCard() {
         <Link to="/food?tab=snap" className="btn small">
           拍照打卡
         </Link>
+        <Link to="/food?tab=drink" className="btn small">
+          要不要喝飲料
+        </Link>
+        <Link to="/food?tab=near&kind=drink" className="btn small">
+          附近飲料店
+        </Link>
       </div>
       <p className="muted small">
         {nm.budgetLeft === null ? '' : `這餐預算剩 ${money(nm.budgetLeft)}`}

@@ -1,7 +1,10 @@
+import { DRINK_GROUPS } from './drinks.js';
+
 // 附近餐廳：Google Places API (New) 的 Nearby Search
 // 只要 Pro 等級的欄位（不拿評分、價位、營業時間，那些是 Enterprise，免費額度少很多）
 
 export const PLACES_URL = 'https://places.googleapis.com/v1/places:searchNearby';
+export const TEXT_URL = 'https://places.googleapis.com/v1/places:searchText';
 const FIELDS = [
   'places.id', 'places.displayName', 'places.primaryType', 'places.primaryTypeDisplayName', 'places.types',
   'places.location', 'places.googleMapsUri', 'places.shortFormattedAddress', 'places.businessStatus',
@@ -27,6 +30,12 @@ export const GROUPS = [
 ];
 export const OTHER = '其他';
 
+// 飲料店：名稱和類型一起看
+export function drinkGroupOf(place) {
+  const s = `${place.primaryType || ''} ${(place.types || []).join(' ')} ${place.displayName?.text || ''}`;
+  return DRINK_GROUPS.find(([, re]) => re.test(s))[0];
+}
+
 export function groupOf(place) {
   const primary = place.primaryType || '';
   for (const [name, re] of GROUPS) if (re.test(primary)) return name;
@@ -44,18 +53,19 @@ export function distanceM(a, b) {
   return Math.round(2 * R * Math.asin(Math.sqrt(h)));
 }
 
-export function normalize(places, here) {
+export function normalize(places, here, kind = 'food', radius = null) {
   return (places || [])
     .filter((p) => !p.businessStatus || p.businessStatus === 'OPERATIONAL')
     .map((p) => ({
       id: p.id,
       name: p.displayName?.text || '（沒有名字）',
-      group: groupOf(p),
+      group: kind === 'drink' ? drinkGroupOf(p) : groupOf(p),
       typeLabel: p.primaryTypeDisplayName?.text || '',
       address: p.shortFormattedAddress || '',
       url: p.googleMapsUri || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(p.displayName?.text || '')}&query_place_id=${p.id}`,
       distance: p.location && here ? distanceM(here, p.location) : null,
     }))
+    .filter((p) => !radius || p.distance == null || p.distance <= radius)
     .sort((a, b) => (a.distance ?? 1e9) - (b.distance ?? 1e9));
 }
 
@@ -65,7 +75,7 @@ export function groupCounts(list) {
   return [...m.entries()].map(([name, count]) => ({ name, count }));
 }
 
-const cacheKey = (lat, lng, radius) => `planner.places:${lat.toFixed(3)},${lng.toFixed(3)}:${radius}`;
+const cacheKey = (lat, lng, radius, kind) => `planner.places:${kind}:${lat.toFixed(3)},${lng.toFixed(3)}:${radius}`;
 
 function readCache(key) {
   try {
@@ -86,11 +96,28 @@ function writeCache(key, places) {
 }
 
 // 同一個位置 6 小時內不重抓，省額度
-export async function searchNearby({ key, latitude, longitude, radius }) {
-  const ck = cacheKey(latitude, longitude, radius);
+// 飲料店用 Text Search：手搖飲在 Google 地圖的類型很雜，用關鍵字找比較準
+async function fetchDrinks({ key, latitude, longitude, radius }) {
+  const res = await fetch(TEXT_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Goog-Api-Key': key, 'X-Goog-FieldMask': FIELDS },
+    body: JSON.stringify({
+      textQuery: '飲料店 手搖飲 咖啡',
+      pageSize: 20,
+      rankPreference: radius <= 1000 ? 'DISTANCE' : 'RELEVANCE',
+      languageCode: 'zh-TW',
+      regionCode: 'TW',
+      locationBias: { circle: { center: { latitude, longitude }, radius } },
+    }),
+  });
+  return res;
+}
+
+export async function searchNearby({ key, latitude, longitude, radius, kind = 'food' }) {
+  const ck = cacheKey(latitude, longitude, radius, kind);
   const cached = readCache(ck);
   if (cached) return { places: cached, cached: true };
-  const res = await fetch(PLACES_URL, {
+  const res = kind === 'drink' ? await fetchDrinks({ key, latitude, longitude, radius }) : await fetch(PLACES_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'X-Goog-Api-Key': key, 'X-Goog-FieldMask': FIELDS },
     body: JSON.stringify({

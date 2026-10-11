@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import Wheel from './Wheel.jsx';
 import { Sheet } from './ui.jsx';
 import { RADII, searchNearby, getPosition, normalize, groupCounts } from '../lib/places.js';
@@ -10,6 +11,8 @@ const dist = (m) => (m == null ? '' : m < 1000 ? `${m} 公尺` : `${(m / 1000).t
 
 // 附近餐廳轉盤：先抓定位，再用 Google 地圖找附近的店，依類型分組
 export default function Nearby() {
+  const [params, setParams] = useSearchParams();
+  const kind = params.get('kind') === 'drink' ? 'drink' : 'food';
   const [radius, setRadius] = useState(1000);
   const [state, setState] = useState({ status: 'idle', list: [], error: '' });
   const [mode, setMode] = useState('group');
@@ -25,14 +28,22 @@ export default function Nearby() {
     );
   }
 
+  const switchKind = (k) => {
+    setParams(k === 'drink' ? { tab: 'near', kind: 'drink' } : { tab: 'near' });
+    setState({ status: 'idle', list: [], error: '' });
+    setOff([]);
+    setResult(null);
+    setExcluded([]);
+  };
+
   const load = async (r = radius) => {
     setState({ status: 'loading', list: [], error: '' });
     setResult(null);
     setExcluded([]);
     try {
       const here = await getPosition();
-      const { places, cached } = await searchNearby({ key: KEY, ...here, radius: r });
-      setState({ status: 'ok', list: normalize(places, here), error: '', cached });
+      const { places, cached } = await searchNearby({ key: KEY, ...here, radius: r, kind });
+      setState({ status: 'ok', list: normalize(places, here, kind, r), error: '', cached });
     } catch (e) {
       setState({ status: 'error', list: [], error: e.message });
     }
@@ -48,8 +59,16 @@ export default function Nearby() {
   return (
     <section className="section">
       <div className="card next-head">
-        <strong>附近吃什麼</strong>
-        <span className="muted small">用 Google 地圖找你附近的餐廳，依類型分好放進轉盤。</span>
+        <div className="seg two">
+          <button className={kind === 'food' ? 'on' : ''} onClick={() => switchKind('food')}>
+            找餐廳
+          </button>
+          <button className={kind === 'drink' ? 'on' : ''} onClick={() => switchKind('drink')}>
+            找飲料店
+          </button>
+        </div>
+        <strong>{kind === 'drink' ? '附近喝什麼' : '附近吃什麼'}</strong>
+        <span className="muted small">用 Google 地圖找你附近的{kind === 'drink' ? '飲料店（手搖飲、咖啡、果汁）' : '餐廳'}，依類型分好放進轉盤。</span>
         <div className="row gap wrap near-controls">
           <select value={radius} onChange={(e) => { const r = Number(e.target.value); setRadius(r); if (state.status === 'ok') load(r); }} aria-label="範圍">
             {RADII.map((r) => (
@@ -59,12 +78,12 @@ export default function Nearby() {
             ))}
           </select>
           <button className="btn primary" onClick={() => load()} disabled={state.status === 'loading'}>
-            {state.status === 'loading' ? '找找看…' : state.status === 'ok' ? '重新找' : '找附近的店'}
+            {state.status === 'loading' ? '找找看…' : state.status === 'ok' ? '重新找' : kind === 'drink' ? '找附近的飲料店' : '找附近的店'}
           </button>
         </div>
       </div>
       {state.status === 'error' && <p className="hint warn">找不到附近的店：{state.error}</p>}
-      {state.status === 'ok' && !list.length && <p className="hint warn">這個範圍內沒有找到餐廳，把範圍加大試試。</p>}
+      {state.status === 'ok' && !list.length && <p className="hint warn">{kind === 'drink' ? '這個範圍內沒有找到飲料店' : '這個範圍內沒有找到餐廳'}，把範圍加大試試。</p>}
 
       {list.length > 0 && (
         <>
@@ -119,7 +138,7 @@ export default function Nearby() {
         <Sheet title="就決定是你了" onClose={() => setResult(null)}>
           {mode === 'group' ? (
             <>
-              <p className="wheel-result">吃{result.name}</p>
+              <p className="wheel-result">{kind === 'drink' ? '喝' : '吃'}{result.name}</p>
               <ul className="list">
                 {shown.filter((p) => p.group === result.name).map((p) => (
                   <PlaceRow key={p.id} p={p} />
@@ -135,6 +154,11 @@ export default function Nearby() {
               <a className="btn primary big wide" href={result.url} target="_blank" rel="noreferrer">
                 在 Google 地圖打開
               </a>
+              {kind === 'drink' && (
+                <Link className="btn big wide" to={`/money?drink=1&note=${encodeURIComponent(result.name)}`}>
+                  買了，記一筆飲料
+                </Link>
+              )}
             </>
           )}
           <button

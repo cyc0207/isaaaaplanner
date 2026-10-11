@@ -82,10 +82,12 @@ function QuickAdd() {
   const { api, budget, defaultAccount, confirmClosed, expenses, accountsById } = data;
   const [type, setType] = useState('expense');
   const addCategory = useAddCategory();
+  const [qp] = useSearchParams();
+  const drinkHint = qp.get('drink') === '1';
   const [amount, setAmount] = useState('');
   const [account, setAccount] = useState(defaultAccount);
   const [toAccount, setToAccount] = useState('');
-  const [note, setNote] = useState('');
+  const [note, setNote] = useState(() => qp.get('note') || '');
   const [date, setDate] = useState(today());
   const [toast, setToast] = useState(null);
   const [editing, setEditing] = useState(null);
@@ -219,9 +221,10 @@ function QuickAdd() {
               </div>
             </div>
           )}
+          {drinkHint && type === 'expense' && <p className="hint">輸入金額，再按「飲料」選大小和甜度。</p>}
           <div className="cat-grid">
             {cats.map((c) => (
-              <button key={c} className="cat" disabled={!valid} onClick={() => save(c)}>
+              <button key={c} className={`cat ${drinkHint && c === DRINK ? 'hl' : ''}`} disabled={!valid} onClick={() => save(c)}>
                 {c}
               </button>
             ))}

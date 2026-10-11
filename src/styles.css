@@ -645,3 +645,6 @@ textarea.paste { width: 100%; font-family: ui-monospace, 'Courier New', monospac
 .rb-bar { height: 12px; border: 2px solid var(--line); border-radius: 999px; background: var(--surface-solid); overflow: hidden; }
 .rb-bar span { display: block; height: 100%; background: var(--teal); }
 .rb-num { font-size: 1.05rem; }
+.main .cat-grid .cat.hl { outline: 3px solid var(--accent); outline-offset: 2px; }
+.drink-reasons { margin: 0.3rem 0 0; padding-left: 1.1rem; font-size: 0.85rem; }
+.drink-reasons li { margin: 0.1rem 0; }
