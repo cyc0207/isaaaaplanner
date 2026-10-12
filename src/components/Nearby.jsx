@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import Wheel from './Wheel.jsx';
+import { useData } from '../data.jsx';
+import { reviewOf, RATING_TAG } from '../lib/foodlog.js';
 import { Sheet } from './ui.jsx';
 import { RADII, PRICES, searchNearby, searchAlong, getPosition, findPlace, normalize, groupCounts, randomPointIn, subRadius, mergePlaces, sample } from '../lib/places.js';
 
@@ -28,6 +30,8 @@ export default function Nearby() {
   const [more, setMore] = useState({ status: 'idle', msg: '' });
   // 查到的是一條路時，預設只放這條路上的店
   const [roadOnly, setRoadOnly] = useState(true);
+  const [withBad, setWithBad] = useState(false);
+  const { placeReviews } = useData();
 
   if (!KEY) {
     return (
@@ -119,10 +123,14 @@ export default function Nearby() {
   const priceOn = prices.length > 1;
   const list = priceOn ? all.filter((p) => !priceOff.includes(p.price)) : all;
   const groups = groupCounts(list);
-  const shown = list.filter((p) => !off.includes(p.group));
+  // 複評過的店：踩雷預設不上轉盤，好吃的格子大一倍
+  const rated = list.map((p) => ({ ...p, rating: reviewOf(placeReviews, p)?.rating || null }));
+  const badCount = rated.filter((p) => p.rating === 'bad').length;
+  const shown = rated.filter((p) => !off.includes(p.group) && (withBad || p.rating !== 'bad'));
   const groupOptions = groups.filter((g) => !off.includes(g.name) && !excluded.includes(`g:${g.name}`)).map((g) => ({ id: `g:${g.name}`, name: g.name, group: g.name }));
   // 店太多時隨機挑 12 家上轉盤，可以換一批
-  const placeOptions = sample(shown.filter((p) => !excluded.includes(p.id)), MAX_ON_WHEEL, seed);
+  const placeOptions = sample(shown.filter((p) => !excluded.includes(p.id)), MAX_ON_WHEEL, seed)
+    .map((p) => ({ ...p, placeId: p.id, weight: p.rating === 'good' ? 2 : 1 }));
   const options = mode === 'group' ? groupOptions : placeOptions;
 
   return (
@@ -236,6 +244,12 @@ export default function Nearby() {
             ))}
           </div>
 
+          {badCount > 0 && (
+            <button className={`chip-btn ${withBad ? '' : 'off'} near-bad`} aria-pressed={withBad} onClick={() => { setWithBad(!withBad); setExcluded([]); }}>
+              {withBad ? `踩雷的 ${badCount} 家也放進來了` : `踩雷的 ${badCount} 家沒放進轉盤`}
+            </button>
+          )}
+
           <div className="seg two">
             <button className={mode === 'group' ? 'on' : ''} onClick={() => { setMode('group'); setExcluded([]); }}>
               轉類型
@@ -256,7 +270,7 @@ export default function Nearby() {
               source={kind === 'drink' ? 'drink' : 'near'}
               options={options}
               onResult={setResult}
-              caption={mode === 'group' ? `${options.length} 種類型` : shown.length > MAX_ON_WHEEL ? `隨機 ${options.length} 家（共 ${shown.length} 家）` : `${options.length} 家`}
+              caption={mode === 'group' ? `${options.length} 種類型` : `${shown.length > MAX_ON_WHEEL ? `隨機 ${options.length} 家（共 ${shown.length} 家）` : `${options.length} 家`}${options.some((o) => o.rating === 'good') ? '・複評好吃的格子大一倍' : ''}`}
             />
           )}
           {mode === 'place' && shown.length > MAX_ON_WHEEL && (
@@ -328,7 +342,7 @@ function PlaceRow({ p }) {
   return (
     <li className="meal-choice">
       <span className="meal-line">
-        <strong>{p.name}</strong>
+        <strong>{p.name}{p.rating && <span className={`rate-tag ${p.rating}`}>{RATING_TAG[p.rating]}</span>}</strong>
         <span className="muted">{[p.group, p.priceLabel, dist(p.distance), p.address].filter(Boolean).join('・')}</span>
       </span>
       <a className="btn small" href={p.url} target="_blank" rel="noreferrer">

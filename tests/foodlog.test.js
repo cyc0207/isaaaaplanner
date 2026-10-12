@@ -30,3 +30,30 @@ describe('轉盤打卡', () => {
     expect(wheelLabel({ fromWheel: false })).toBe('');
   });
 });
+
+describe('複評', () => {
+  it('店家 id 優先，沒有就用名字', async () => {
+    const { reviewKey, reviewOf } = await import('../src/lib/foodlog.js');
+    expect(reviewKey({ placeId: 'ChIJabc', name: '拉麵' })).toBe('ChIJabc');
+    expect(reviewKey({ name: '阿姨 便當' })).toBe('n_阿姨_便當');
+    expect(reviewKey({ name: '' })).toBeNull();
+    const reviews = { ChIJabc: { rating: 'bad' }, n_阿姨便當: { rating: 'good' } };
+    expect(reviewOf(reviews, { id: 'ChIJabc', name: 'x' }).rating).toBe('bad');
+    expect(reviewOf(reviews, { id: 'other', name: '阿姨便當' }).rating).toBe('good');
+    expect(reviewOf(reviews, { id: 'zz', name: '沒評過' })).toBeNull();
+  });
+  it('待複評只問有名字、還沒評、沒跳過的，新的先', async () => {
+    const { toReview } = await import('../src/lib/foodlog.js');
+    const items = [
+      { id: 1, note: 'a', createdAtMs: 1 }, { id: 2, note: 'b', rating: 'good', createdAtMs: 2 }, { id: 3, createdAtMs: 3 },
+      { id: 4, wheelPick: 'c', createdAtMs: 4 }, { id: 5, note: 'd', reviewSkipped: true, createdAtMs: 5 },
+    ];
+    expect(toReview(items).map((i) => i.id)).toEqual([4, 1]);
+  });
+  it('累計次數、最新評分', async () => {
+    const { reviewUpdate } = await import('../src/lib/foodlog.js');
+    const a = reviewUpdate(null, { name: '拉麵', placeId: 'p1', rating: 'good', now: 1 });
+    const b = reviewUpdate(a, { name: '拉麵', rating: 'bad', now: 2 });
+    expect(b).toEqual({ name: '拉麵', placeId: 'p1', rating: 'bad', counts: { good: 1, ok: 0, bad: 1 }, updatedAtMs: 2 });
+  });
+});

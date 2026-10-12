@@ -28,9 +28,9 @@ export const WHEEL_SOURCES = { meals: '常吃轉盤', near: '附近餐廳轉盤'
 const SPIN_KEY = 'planner.lastSpin';
 const SPIN_MS = 3 * 60 * 60 * 1000;
 
-export function rememberSpin(source, name, now = Date.now()) {
+export function rememberSpin(source, name, now = Date.now(), placeId = null) {
   try {
-    localStorage.setItem(SPIN_KEY, JSON.stringify({ source, name, at: now }));
+    localStorage.setItem(SPIN_KEY, JSON.stringify({ source, name, at: now, placeId }));
   } catch {
     // 存不了就算了，打卡時自己選
   }
@@ -57,4 +57,33 @@ export function forgetSpin() {
 export function wheelLabel(it) {
   if (!it.fromWheel) return '';
   return [WHEEL_SOURCES[it.wheelSource] || '轉盤', it.wheelPick].filter(Boolean).join('：');
+}
+
+// 複評：吃完回來評這家店。好吃的在附近轉盤格子大一倍，踩雷的預設不上轉盤
+export const RATINGS = [['good', '好吃，會再來'], ['ok', '普通'], ['bad', '踩雷']];
+export const RATING_TAG = { good: '好吃', ok: '普通', bad: '踩雷' };
+
+// 評分存在 placeReviews：Google 地圖的店用店家 id，其他用名字
+export function reviewKey({ placeId, name }) {
+  if (placeId) return placeId.replace(/\//g, '_');
+  const n = (name || '').trim();
+  return n ? `n_${n.replace(/[\/\s]+/g, '_')}` : null;
+}
+
+export function reviewOf(reviews, p) {
+  return (p.id && reviews[reviewKey({ placeId: p.id })]) || reviews[reviewKey({ name: p.name })] || null;
+}
+
+// 打卡裡還沒評的（有寫吃什麼或轉盤轉到的才問），新的先
+export function toReview(items, limit = 3) {
+  return items
+    .filter((i) => !i.rating && !i.reviewSkipped && (i.wheelPick || i.note))
+    .sort((a, b) => (b.createdAtMs || 0) - (a.createdAtMs || 0))
+    .slice(0, limit);
+}
+
+export function reviewUpdate(prev, { name, placeId, rating, now = Date.now() }) {
+  const counts = { good: 0, ok: 0, bad: 0, ...(prev?.counts || {}) };
+  counts[rating] += 1;
+  return { name, placeId: placeId || prev?.placeId || null, rating, counts, updatedAtMs: now };
 }

@@ -31,7 +31,7 @@ export default function Wheel({ options, onResult, caption, source }) {
     setSpinning(false);
     if (target.current) {
       // 記住轉出來的結果，之後拍照打卡會標成「轉盤打卡」
-      if (source) rememberSpin(source, target.current.name);
+      if (source) rememberSpin(source, target.current.name, Date.now(), target.current.placeId || null);
       onResult(target.current);
     }
     target.current = null;

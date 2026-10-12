@@ -709,3 +709,21 @@ details.section > summary { cursor: pointer; padding: 0.3rem 0; }
 .snap-how { display: flex; flex-direction: column; gap: 0.35rem; }
 .near-road { display: flex; align-items: center; gap: 0.45rem; margin-top: 0.4rem; font-weight: 700; font-size: 0.9rem; }
 .near-road input { width: 1.1rem; height: 1.1rem; accent-color: var(--accent); }
+/* 複評 */
+.rate-tag { display: inline-block; margin-left: 0.4rem; font-size: 0.68rem; font-weight: 900; padding: 0 0.4rem; border: 1.5px solid var(--line); border-radius: 999px; vertical-align: 0.15em; }
+.rate-tag.good { background: var(--teal); color: #fbf5e6; }
+.rate-tag.ok { background: var(--surface-solid); color: var(--text); }
+.rate-tag.bad { background: var(--over); color: #fbf5e6; }
+.snap-rate { position: absolute; right: 5px; bottom: 5px; margin: 0; }
+.review-queue { margin-bottom: 0.8rem; }
+.review-queue h3 { margin-top: 0; }
+.review-item { display: flex; gap: 0.7rem; align-items: flex-start; }
+.review-item img { width: 64px; height: 64px; object-fit: cover; border: 2px solid var(--line); border-radius: 10px; flex: none; }
+.review-body { display: flex; flex-direction: column; gap: 0.3rem; min-width: 0; flex: 1; }
+.review-body .link { align-self: flex-start; padding: 0; }
+.rate-btns { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+.rate-btns .btn.on.rate-good { background: var(--teal); color: #fbf5e6; }
+.rate-btns .btn.on.rate-ok { background: var(--mustard); color: #2b2118; }
+.rate-btns .btn.on.rate-bad { background: var(--over); color: #fbf5e6; }
+.review-row { display: flex; flex-direction: column; gap: 0.35rem; margin: 0.5rem 0; }
+.near-bad { margin-bottom: 0.5rem; }

@@ -61,7 +61,7 @@ export function cheapestForSlot(meals, slot) {
 }
 
 // 轉盤：符合一餐盤原則的格子大一倍
-export const wheelWeight = (m) => (m.plateOk ? 2 : 1);
+export const wheelWeight = (m) => m.weight ?? (m.plateOk ? 2 : 1);
 
 export function wheelSegments(options) {
   const total = options.reduce((s, m) => s + wheelWeight(m), 0);

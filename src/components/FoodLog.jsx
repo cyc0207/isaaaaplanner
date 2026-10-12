@@ -4,7 +4,7 @@ import { db } from '../firebase.js';
 import { useData } from '../data.jsx';
 import { today, addDays, shortLabel } from '../lib/date.js';
 import { SLOTS } from '../lib/meals.js';
-import { LOG_SLOTS, DAYS, slotNow, photoStreak, WHEEL_SOURCES, lastSpin, forgetSpin, wheelLabel } from '../lib/foodlog.js';
+import { LOG_SLOTS, DAYS, slotNow, photoStreak, WHEEL_SOURCES, lastSpin, forgetSpin, wheelLabel, RATINGS, RATING_TAG, reviewKey, toReview, reviewUpdate } from '../lib/foodlog.js';
 import { compressPhoto } from '../lib/photo.js';
 import { money, Sheet } from './ui.jsx';
 
@@ -34,7 +34,7 @@ export default function FoodLog() {
     try {
       const photo = await compressPhoto(file);
       const spin = lastSpin();
-      setDraft({ ...photo, slot: slotNow(), note: spin?.name || '', amount: '', fromWheel: !!spin, wheelSource: spin?.source || null, wheelPick: spin?.name || '' });
+      setDraft({ ...photo, slot: slotNow(), note: spin?.name || '', amount: '', fromWheel: !!spin, wheelSource: spin?.source || null, wheelPick: spin?.name || '', placeId: spin?.placeId || null });
     } catch {
       setErr('這張照片讀不出來，換一張試試。');
     }
@@ -68,6 +68,7 @@ export default function FoodLog() {
         </label>
       </div>
       {err && <p className="hint warn">{err}</p>}
+      <ReviewQueue items={toReview(items)} />
 
       {!byDay.length && <p className="muted">還沒有打卡。吃之前拍一張，之後回頭看吃了什麼。</p>}
       {byDay.map((g) => (
@@ -79,6 +80,7 @@ export default function FoodLog() {
                 <img src={it.thumb} alt="" />
                 <span className="snap-tag">{LOG_SLOTS[it.slot] || '其他'}</span>
                 {it.fromWheel && <span className="snap-wheel">轉盤</span>}
+                {it.rating && <span className={`snap-rate rate-tag ${it.rating}`}>{RATING_TAG[it.rating]}</span>}
               </button>
             ))}
           </div>
@@ -120,6 +122,7 @@ function SnapEditor({ draft, setDraft, onClose }) {
       data: {
         date: day, slot: draft.slot, note: draft.note.trim(), thumb: draft.thumb, expenseId, createdAtMs: Date.now(),
         fromWheel: draft.fromWheel, wheelSource: draft.fromWheel ? draft.wheelSource : null, wheelPick: draft.fromWheel ? draft.wheelPick : '',
+        placeId: draft.fromWheel ? draft.placeId || null : null,
       },
     });
     api.batch(ops);
@@ -191,10 +194,66 @@ function SnapViewer({ item, onClose }) {
           {item.fromWheel ? '改成自己選的' : '改成轉盤轉的'}
         </button>
       </p>
+      <div className="review-row">
+        <span className="small strong">複評</span>
+        <RateButtons item={item} onDone={onClose} />
+      </div>
       {item.expenseId && <p className="muted small">這次有一起記帳。</p>}
       <button className="btn danger" onClick={remove}>
         刪除
       </button>
     </Sheet>
+  );
+}
+
+// 用打卡的資料寫評分：foodLog 記這次的評分，placeReviews 累計這家店
+export function useRate() {
+  const { api, placeReviews } = useData();
+  return (item, rating) => {
+    const name = (item.wheelPick || item.note || '').trim();
+    const key = reviewKey({ placeId: item.placeId, name });
+    const ops = [{ set: `foodLog/${item.id}`, data: { rating, reviewSkipped: false } }];
+    if (key) ops.push({ set: `placeReviews/${key}`, merge: false, data: reviewUpdate(placeReviews[key], { name, placeId: item.placeId, rating }) });
+    api.batch(ops);
+  };
+}
+
+function RateButtons({ item, onDone }) {
+  const rate = useRate();
+  return (
+    <div className="rate-btns">
+      {RATINGS.map(([k, label]) => (
+        <button key={k} type="button" className={`btn small rate-${k} ${item.rating === k ? 'on' : ''}`} onClick={() => { rate(item, k); onDone?.(); }}>
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// 打卡頁上方：還沒評的那幾餐
+function ReviewQueue({ items }) {
+  const { api } = useData();
+  if (!items.length) return null;
+  return (
+    <div className="card review-queue">
+      <h3>複評：上次吃的怎麼樣？</h3>
+      <p className="muted small">評過的店會記住：踩雷的不再上附近轉盤，好吃的格子大一倍。</p>
+      <ul className="list">
+        {items.map((it) => (
+          <li key={it.id} className="review-item">
+            <img src={it.thumb} alt="" />
+            <div className="review-body">
+              <strong>{it.wheelPick || it.note}</strong>
+              <span className="muted small">{shortLabel(it.date)} {LOG_SLOTS[it.slot] || ''}{it.fromWheel ? '・轉盤' : ''}</span>
+              <RateButtons item={it} />
+              <button className="link small" onClick={() => api.set(`foodLog/${it.id}`, { reviewSkipped: true })}>
+                這餐不評
+              </button>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
