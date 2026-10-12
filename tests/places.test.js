@@ -27,3 +27,14 @@ describe('附近餐廳分類', () => {
     expect(distanceM({ latitude: 0, longitude: 0 }, { latitude: 0, longitude: 1 })).toBe(111195);
   });
 });
+
+describe('priceOf', () => {
+  it('有 priceLevel 用它分級，有 priceRange 顯示金額', async () => {
+    const { priceOf } = await import('../src/lib/places.js');
+    expect(priceOf({ priceLevel: 'PRICE_LEVEL_INEXPENSIVE', priceRange: { startPrice: { units: '1' }, endPrice: { units: '200' } } })).toEqual({ price: 'cheap', priceLabel: '$1–200' });
+    expect(priceOf({ priceLevel: 'PRICE_LEVEL_EXPENSIVE' })).toEqual({ price: 'high', priceLabel: '$$$' });
+    expect(priceOf({ priceRange: { startPrice: { units: '400' }, endPrice: { units: '600' } } })).toEqual({ price: 'mid', priceLabel: '$400–600' });
+    expect(priceOf({ priceRange: { startPrice: { units: '1000' } } })).toEqual({ price: 'high', priceLabel: '$1000 以上' });
+    expect(priceOf({})).toEqual({ price: 'none', priceLabel: '' });
+  });
+});

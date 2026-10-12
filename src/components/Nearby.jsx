@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import Wheel from './Wheel.jsx';
 import { Sheet } from './ui.jsx';
-import { RADII, searchNearby, getPosition, normalize, groupCounts } from '../lib/places.js';
+import { RADII, PRICES, searchNearby, getPosition, findPlace, normalize, groupCounts } from '../lib/places.js';
 
 const KEY = import.meta.env.VITE_GOOGLE_MAPS_KEY || '';
 const MAX_ON_WHEEL = 12;
@@ -19,6 +19,11 @@ export default function Nearby() {
   const [off, setOff] = useState([]);
   const [result, setResult] = useState(null);
   const [excluded, setExcluded] = useState([]);
+  const [priceOff, setPriceOff] = useState([]);
+  // 從哪裡找：null = 我的位置；否則是輸入的街道／地標
+  const [origin, setOrigin] = useState(null);
+  const [where, setWhere] = useState('');
+  const [picking, setPicking] = useState({ status: 'idle', list: [], error: '' });
 
   if (!KEY) {
     return (
@@ -34,14 +39,15 @@ export default function Nearby() {
     setOff([]);
     setResult(null);
     setExcluded([]);
+    setPriceOff([]);
   };
 
-  const load = async (r = radius) => {
+  const load = async (r = radius, from = origin) => {
     setState({ status: 'loading', list: [], error: '' });
     setResult(null);
     setExcluded([]);
     try {
-      const here = await getPosition();
+      const here = from ? { latitude: from.latitude, longitude: from.longitude } : await getPosition();
       const { places, cached } = await searchNearby({ key: KEY, ...here, radius: r, kind });
       setState({ status: 'ok', list: normalize(places, here, kind, r), error: '', cached });
     } catch (e) {
@@ -49,7 +55,35 @@ export default function Nearby() {
     }
   };
 
-  const list = state.list;
+  const lookup = async (e) => {
+    e.preventDefault();
+    if (!where.trim()) return;
+    setPicking({ status: 'loading', list: [], error: '' });
+    try {
+      const found = await findPlace({ key: KEY, text: where });
+      if (found.length === 1) return choose(found[0]);
+      setPicking({ status: found.length ? 'ok' : 'none', list: found, error: '' });
+    } catch (err) {
+      setPicking({ status: 'error', list: [], error: err.message });
+    }
+  };
+  const choose = (o) => {
+    setOrigin(o);
+    setPicking({ status: 'idle', list: [], error: '' });
+    load(radius, o);
+  };
+  const useMine = () => {
+    setOrigin(null);
+    setWhere('');
+    setPicking({ status: 'idle', list: [], error: '' });
+    if (state.status === 'ok' || origin) load(radius, null);
+  };
+
+  const all = state.list;
+  const prices = PRICES.map(([k, label]) => ({ key: k, label, count: all.filter((p) => p.price === k).length })).filter((p) => p.count);
+  // 全部都同一級（常見是都沒標價）就不顯示價位篩選
+  const priceOn = prices.length > 1;
+  const list = priceOn ? all.filter((p) => !priceOff.includes(p.price)) : all;
   const groups = groupCounts(list);
   const shown = list.filter((p) => !off.includes(p.group));
   const groupOptions = groups.filter((g) => !off.includes(g.name) && !excluded.includes(`g:${g.name}`)).map((g) => ({ id: `g:${g.name}`, name: g.name, group: g.name }));
@@ -68,7 +102,43 @@ export default function Nearby() {
           </button>
         </div>
         <strong>{kind === 'drink' ? '附近喝什麼' : '附近吃什麼'}</strong>
-        <span className="muted small">用 Google 地圖找你附近的{kind === 'drink' ? '飲料店（手搖飲、咖啡、果汁）' : '餐廳'}，依類型分好放進轉盤。</span>
+        <span className="muted small">用 Google 地圖找{origin ? '那附近' : '你附近'}的{kind === 'drink' ? '飲料店（手搖飲、咖啡、果汁）' : '餐廳'}，依類型分好放進轉盤。</span>
+        <form className="row gap near-where" onSubmit={lookup}>
+          <input
+            value={where}
+            onChange={(e) => setWhere(e.target.value)}
+            placeholder="輸入街道、地址或地標，例如 永康街"
+            aria-label="查街道"
+            enterKeyHint="search"
+          />
+          <button className="btn" disabled={!where.trim() || picking.status === 'loading'}>
+            {picking.status === 'loading' ? '查…' : '查'}
+          </button>
+        </form>
+        <div className="near-origin small">
+          {origin ? (
+            <>
+              <span>📍 {origin.label}{origin.address ? `（${origin.address}）` : ''}</span>
+              <button className="link" onClick={useMine}>改回我的位置</button>
+            </>
+          ) : (
+            <span className="muted">📍 目前用你現在的位置</span>
+          )}
+        </div>
+        {picking.status === 'error' && <p className="hint warn">查不到這個地方：{picking.error}</p>}
+        {picking.status === 'none' && <p className="hint warn">找不到「{where}」，換個寫法試試（加上區或城市）。</p>}
+        {picking.status === 'ok' && (
+          <ul className="list near-picks" aria-label="選一個地點">
+            {picking.list.map((o) => (
+              <li key={o.id}>
+                <button className="pick" onClick={() => choose(o)}>
+                  <strong>{o.label}</strong>
+                  <span className="muted small">{o.address}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
         <div className="row gap wrap near-controls">
           <select value={radius} onChange={(e) => { const r = Number(e.target.value); setRadius(r); if (state.status === 'ok') load(r); }} aria-label="範圍">
             {RADII.map((r) => (
@@ -83,7 +153,26 @@ export default function Nearby() {
         </div>
       </div>
       {state.status === 'error' && <p className="hint warn">找不到附近的店：{state.error}</p>}
-      {state.status === 'ok' && !list.length && <p className="hint warn">{kind === 'drink' ? '這個範圍內沒有找到飲料店' : '這個範圍內沒有找到餐廳'}，把範圍加大試試。</p>}
+      {state.status === 'ok' && !all.length && <p className="hint warn">{kind === 'drink' ? '這個範圍內沒有找到飲料店' : '這個範圍內沒有找到餐廳'}，把範圍加大試試。</p>}
+
+      {priceOn && (
+        <>
+          <h3>價位（點一下可以拿掉）</h3>
+          <div className="row gap wrap near-prices">
+            {prices.map((p) => (
+              <button
+                key={p.key}
+                className={`chip-btn ${priceOff.includes(p.key) ? 'off' : ''}`}
+                aria-pressed={!priceOff.includes(p.key)}
+                onClick={() => { setPriceOff(priceOff.includes(p.key) ? priceOff.filter((x) => x !== p.key) : [...priceOff, p.key]); setExcluded([]); }}
+              >
+                {p.label} {p.count}
+              </button>
+            ))}
+          </div>
+          {all.length > 0 && !list.length && <p className="hint warn">這個價位沒有店，把價位加回來試試。</p>}
+        </>
+      )}
 
       {list.length > 0 && (
         <>
@@ -149,7 +238,7 @@ export default function Nearby() {
             <>
               <div className="wheel-result">
                 <strong>{result.name}</strong>
-                <div className="muted small">{[result.typeLabel || result.group, dist(result.distance), result.address].filter(Boolean).join('・')}</div>
+                <div className="muted small">{[result.typeLabel || result.group, result.priceLabel, dist(result.distance), result.address].filter(Boolean).join('・')}</div>
               </div>
               <a className="btn primary big wide" href={result.url} target="_blank" rel="noreferrer">
                 在 Google 地圖打開
@@ -181,7 +270,7 @@ function PlaceRow({ p }) {
     <li className="meal-choice">
       <span className="meal-line">
         <strong>{p.name}</strong>
-        <span className="muted">{[p.group, dist(p.distance), p.address].filter(Boolean).join('・')}</span>
+        <span className="muted">{[p.group, p.priceLabel, dist(p.distance), p.address].filter(Boolean).join('・')}</span>
       </span>
       <a className="btn small" href={p.url} target="_blank" rel="noreferrer">
         地圖

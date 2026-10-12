@@ -55,5 +55,5 @@ npm run deploy              # 建置後部署 Hosting 和 Firestore 規則
 4. 「API 和服務」→ Places API (New) →「配額與系統限制」，把 SearchNearby 每天的要求數上限設成 100 左右，超過就停，不會扣款。
 5. Vercel → 專案 → Settings → Environment Variables，新增 `VITE_GOOGLE_MAPS_KEY`，值貼金鑰，環境勾 Production → 到 Deployments 對最新一次按 Redeploy。
 
-只拿 Pro 等級的欄位（名稱、類型、位置、地址），每月有 5,000 次免費；同一個位置 6 小時內會用手機上的快取，不會重複查。
+找店時多拿了價位做價格篩選，這是 Enterprise 等級的欄位，每月有 1,000 次免費（只拿名稱、類型、位置、地址的 Pro 等級是 5,000 次）；輸入街道找地點用的是 Text Search 的 Pro 等級。同一個位置、同一個地址 6 小時內會用手機上的快取，不會重複查，再加上金鑰設的每日上限，自己用不會超過免費額度。
 本機開發把金鑰放 `.env.local`（已在 .gitignore）：`VITE_GOOGLE_MAPS_KEY=...`

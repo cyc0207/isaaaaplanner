@@ -1,14 +1,29 @@
 import { DRINK_GROUPS } from './drinks.js';
 
 // 附近餐廳：Google Places API (New) 的 Nearby Search
-// 只要 Pro 等級的欄位（不拿評分、價位、營業時間，那些是 Enterprise，免費額度少很多）
+// 多拿價位（priceLevel、priceRange）做價格篩選；這兩個是 Enterprise 欄位，每月免費 1,000 次（Pro 是 5,000 次），
+// 所以結果照樣快取 6 小時。評分、營業時間不拿。
 
 export const PLACES_URL = 'https://places.googleapis.com/v1/places:searchNearby';
 export const TEXT_URL = 'https://places.googleapis.com/v1/places:searchText';
 const FIELDS = [
   'places.id', 'places.displayName', 'places.primaryType', 'places.primaryTypeDisplayName', 'places.types',
   'places.location', 'places.googleMapsUri', 'places.shortFormattedAddress', 'places.businessStatus',
+  'places.priceLevel', 'places.priceRange',
 ].join(',');
+const PLACE_FIELDS = 'places.id,places.displayName,places.formattedAddress,places.location';
+
+// 價位分三級；Google 沒標價的歸「未標價」
+export const PRICES = [['cheap', '$ 便宜'], ['mid', '$$ 中等'], ['high', '$$$ 貴'], ['none', '未標價']];
+const LEVELS = { PRICE_LEVEL_FREE: 'cheap', PRICE_LEVEL_INEXPENSIVE: 'cheap', PRICE_LEVEL_MODERATE: 'mid', PRICE_LEVEL_EXPENSIVE: 'high', PRICE_LEVEL_VERY_EXPENSIVE: 'high' };
+export function priceOf(p) {
+  const start = Number(p.priceRange?.startPrice?.units);
+  const end = Number(p.priceRange?.endPrice?.units);
+  const label = start ? (end ? `$${start}–${end}` : `$${start} 以上`) : '';
+  let bucket = LEVELS[p.priceLevel];
+  if (!bucket && start) bucket = start < 200 ? 'cheap' : start < 500 ? 'mid' : 'high';
+  return { price: bucket || 'none', priceLabel: label || (bucket ? PRICES.find(([k]) => k === bucket)[1].split(' ')[0] : '') };
+}
 // 只用很早就有的類型；新類型（例如台灣菜）會包含在 restaurant 裡
 const INCLUDED = ['restaurant', 'meal_takeaway', 'cafe', 'bakery'];
 export const RADII = [500, 1000, 2000, 5000];
@@ -64,6 +79,7 @@ export function normalize(places, here, kind = 'food', radius = null) {
       address: p.shortFormattedAddress || '',
       url: p.googleMapsUri || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(p.displayName?.text || '')}&query_place_id=${p.id}`,
       distance: p.location && here ? distanceM(here, p.location) : null,
+      ...priceOf(p),
     }))
     .filter((p) => !radius || p.distance == null || p.distance <= radius)
     .sort((a, b) => (a.distance ?? 1e9) - (b.distance ?? 1e9));
@@ -137,6 +153,30 @@ export async function searchNearby({ key, latitude, longitude, radius, kind = 'f
   }
   writeCache(ck, body.places || []);
   return { places: body.places || [], cached: false };
+}
+
+// 輸入街道、地址或地標，找出它的位置（用同一把 Places 金鑰的 Text Search，不用另外開 Geocoding）
+export async function findPlace({ key, text }) {
+  const q = text.trim();
+  const ck = `planner.placefind:${q}`;
+  const cached = readCache(ck);
+  if (cached) return cached;
+  const res = await fetch(TEXT_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Goog-Api-Key': key, 'X-Goog-FieldMask': PLACE_FIELDS },
+    body: JSON.stringify({ textQuery: q, pageSize: 5, languageCode: 'zh-TW', regionCode: 'TW' }),
+  });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(body?.error?.message || `HTTP ${res.status}`);
+  const found = (body.places || []).filter((p) => p.location).map((p) => ({
+    id: p.id,
+    label: p.displayName?.text || q,
+    address: p.formattedAddress || '',
+    latitude: p.location.latitude,
+    longitude: p.location.longitude,
+  }));
+  writeCache(ck, found);
+  return found;
 }
 
 export function getPosition() {
