@@ -45,18 +45,28 @@ async function seedIfNeeded(uid) {
   await batch.commit();
 }
 
+// 存檔失敗時，畫面上會先出現、再被伺服器退回而消失；講清楚原因
+export function friendlyError(e) {
+  const code = e?.code || '';
+  if (code.includes('resource-exhausted')) return '今天的免費額度用完了，剛剛的修改沒有存到。明天（台灣下午 3 點後）會恢復。';
+  if (code.includes('permission-denied')) return '沒有權限存檔，請重新登入再試一次。';
+  if (code.includes('unauthenticated')) return '登入過期了，請重新登入。';
+  if (code.includes('invalid-argument')) return `資料格式有問題，沒有存到：${e.message}`;
+  return e?.message || String(e);
+}
+
 export function DataProvider({ uid, children }) {
   const [raw, setRaw] = useState({});
   const [error, setError] = useState(null);
 
   useEffect(() => {
     setRaw({});
-    seedIfNeeded(uid).catch((e) => setError(e.message));
+    seedIfNeeded(uid).catch((e) => setError(friendlyError(e)));
     const unsubs = COLLECTIONS.map((name) =>
       onSnapshot(
         collection(db, 'users', uid, name),
         (snap) => setRaw((r) => ({ ...r, [name]: snap.docs.map((d) => ({ id: d.id, ...d.data() })) })),
-        (e) => setError(e.message),
+        (e) => setError(friendlyError(e)),
       ),
     );
     return () => unsubs.forEach((u) => u());
@@ -64,7 +74,7 @@ export function DataProvider({ uid, children }) {
 
   const report = useCallback((e) => {
     console.error(e);
-    setError(e.message || String(e));
+    setError(friendlyError(e));
   }, []);
 
   const api = useMemo(() => {

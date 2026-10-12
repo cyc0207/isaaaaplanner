@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { serverTimestamp } from 'firebase/firestore';
 import { useData } from '../data.jsx';
 import { Sheet, useProjects } from './ui.jsx';
@@ -164,15 +164,26 @@ export function AddTaskForm({ date, onAdd, disabledReason, compact }) {
   const [title, setTitle] = useState('');
   const [project, setProject] = useState('');
   const [msg, setMsg] = useState('');
+  const [ok, setOk] = useState('');
+  useEffect(() => {
+    if (!ok) return undefined;
+    const t = setTimeout(() => setOk(''), 2500);
+    return () => clearTimeout(t);
+  }, [ok]);
   const submit = (e) => {
     e.preventDefault();
-    if (!title.trim()) return;
+    if (!title.trim()) {
+      setMsg(project.trim() ? '上面那格還沒寫要做什麼（下面那格是專案）' : '先寫要做什麼');
+      return;
+    }
     if (disabledReason) {
       setMsg(disabledReason);
       return;
     }
-    onAdd({ title: title.trim(), date, project });
+    onAdd({ title: title.trim(), date, project: project.trim() });
+    setOk(`已新增「${title.trim()}」`);
     setTitle('');
+    setProject('');
     setMsg('');
   };
   return (
@@ -183,6 +194,7 @@ export function AddTaskForm({ date, onAdd, disabledReason, compact }) {
         新增
       </button>
       {msg && <p className="hint warn">{msg}</p>}
+      {ok && !msg && <p className="hint ok">{ok}</p>}
     </form>
   );
 }
