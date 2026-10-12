@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import Wheel from './Wheel.jsx';
 import { Sheet } from './ui.jsx';
-import { RADII, PRICES, searchNearby, getPosition, findPlace, normalize, groupCounts, randomPointIn, subRadius, mergePlaces, sample } from '../lib/places.js';
+import { RADII, PRICES, searchNearby, searchAlong, getPosition, findPlace, normalize, groupCounts, randomPointIn, subRadius, mergePlaces, sample } from '../lib/places.js';
 
 const KEY = import.meta.env.VITE_GOOGLE_MAPS_KEY || '';
 const MAX_ON_WHEEL = 12;
@@ -26,6 +26,8 @@ export default function Nearby() {
   const [picking, setPicking] = useState({ status: 'idle', list: [], error: '' });
   const [seed, setSeed] = useState(() => Math.floor(Math.random() * 1e9));
   const [more, setMore] = useState({ status: 'idle', msg: '' });
+  // 查到的是一條路時，預設只放這條路上的店
+  const [roadOnly, setRoadOnly] = useState(true);
 
   if (!KEY) {
     return (
@@ -44,14 +46,17 @@ export default function Nearby() {
     setPriceOff([]);
   };
 
-  const load = async (r = radius, from = origin) => {
+  const load = async (r = radius, from = origin, ro = roadOnly) => {
     setState({ status: 'loading', list: [], error: '' });
     setResult(null);
     setExcluded([]);
     try {
       const here = from ? { latitude: from.latitude, longitude: from.longitude } : await getPosition();
-      const { places, cached } = await searchNearby({ key: KEY, ...here, radius: r, kind });
-      setState({ status: 'ok', list: normalize(places, here, kind, r), error: '', cached, here, radius: r });
+      const road = from?.road && ro ? from.road : null;
+      const { places, cached } = road
+        ? await searchAlong({ key: KEY, road, ...here, kind })
+        : await searchNearby({ key: KEY, ...here, radius: r, kind });
+      setState({ status: 'ok', list: normalize(places, here, kind, road ? null : r), error: '', cached, here, radius: r, road });
       setMore({ status: 'idle', msg: '' });
     } catch (e) {
       setState({ status: 'error', list: [], error: e.message });
@@ -88,8 +93,9 @@ export default function Nearby() {
   };
   const choose = (o) => {
     setOrigin(o);
+    setRoadOnly(!!o.road);
     setPicking({ status: 'idle', list: [], error: '' });
-    load(radius, o);
+    load(radius, o, !!o.road);
   };
   const useMine = () => {
     setOrigin(null);
@@ -122,7 +128,7 @@ export default function Nearby() {
           </button>
         </div>
         <strong>{kind === 'drink' ? '附近喝什麼' : '附近吃什麼'}</strong>
-        <span className="muted small">用 Google 地圖找{origin ? '那附近' : '你附近'}的{kind === 'drink' ? '飲料店（手搖飲、咖啡、果汁）' : '餐廳'}，依類型分好放進轉盤。</span>
+        <span className="muted small">用 Google 地圖找{origin?.road && roadOnly ? `${origin.road}上` : origin ? '那附近' : '你附近'}的{kind === 'drink' ? '飲料店（手搖飲、咖啡、果汁）' : '餐廳'}，依類型分好放進轉盤。</span>
         <form className="row gap near-where" onSubmit={lookup}>
           <input
             value={where}
@@ -145,6 +151,12 @@ export default function Nearby() {
             <span className="muted">📍 目前用你現在的位置</span>
           )}
         </div>
+        {origin?.road && (
+          <label className="near-road">
+            <input type="checkbox" checked={roadOnly} onChange={(e) => { setRoadOnly(e.target.checked); load(radius, origin, e.target.checked); }} />
+            只要「{origin.road}」上的店
+          </label>
+        )}
         {picking.status === 'error' && <p className="hint warn">查不到這個地方：{picking.error}</p>}
         {picking.status === 'none' && <p className="hint warn">找不到「{where}」，換個寫法試試（加上區或城市）。</p>}
         {picking.status === 'ok' && (
@@ -160,20 +172,25 @@ export default function Nearby() {
           </ul>
         )}
         <div className="row gap wrap near-controls">
-          <select value={radius} onChange={(e) => { const r = Number(e.target.value); setRadius(r); if (state.status === 'ok') load(r); }} aria-label="範圍">
-            {RADII.map((r) => (
-              <option key={r} value={r}>
-                {dist(r)}內
-              </option>
-            ))}
-          </select>
+          {origin?.road && roadOnly ? (
+            <span className="chip">沿著{origin.road}</span>
+          ) : (
+            <select value={radius} onChange={(e) => { const r = Number(e.target.value); setRadius(r); if (state.status === 'ok') load(r); }} aria-label="範圍">
+              {RADII.map((r) => (
+                <option key={r} value={r}>
+                  {dist(r)}內
+                </option>
+              ))}
+            </select>
+          )}
           <button className="btn primary" onClick={() => load()} disabled={state.status === 'loading'}>
             {state.status === 'loading' ? '找找看…' : state.status === 'ok' ? '重新找' : kind === 'drink' ? '找附近的飲料店' : '找附近的店'}
           </button>
         </div>
       </div>
       {state.status === 'error' && <p className="hint warn">找不到附近的店：{state.error}</p>}
-      {state.status === 'ok' && !all.length && <p className="hint warn">{kind === 'drink' ? '這個範圍內沒有找到飲料店' : '這個範圍內沒有找到餐廳'}，把範圍加大試試。</p>}
+      {state.status === 'ok' && !all.length && state.road && <p className="hint warn">「{state.road}」上沒找到{kind === 'drink' ? '飲料店' : '餐廳'}，把「只要這條路上的店」關掉改找附近試試。</p>}
+      {state.status === 'ok' && !all.length && !state.road && <p className="hint warn">{kind === 'drink' ? '這個範圍內沒有找到飲料店' : '這個範圍內沒有找到餐廳'}，把範圍加大試試。</p>}
 
       {priceOn && (
         <>
@@ -239,11 +256,13 @@ export default function Nearby() {
             </button>
           )}
 
-          <button className="btn wide" onClick={loadMore} disabled={more.status === 'loading'}>
-            {more.status === 'loading' ? '抓抓看…' : '隨機換個地方，再抓一批'}
-          </button>
+          {!state.road && (
+            <button className="btn wide" onClick={loadMore} disabled={more.status === 'loading'}>
+              {more.status === 'loading' ? '抓抓看…' : '隨機換個地方，再抓一批'}
+            </button>
+          )}
           {more.msg && <p className="hint">{more.msg}</p>}
-          <h3>附近的店（{shown.length}）</h3>
+          <h3>{state.road ? `${state.road}上的店` : '附近的店'}（{shown.length}）</h3>
           <ul className="list">
             {shown.map((p) => (
               <PlaceRow key={p.id} p={p} />

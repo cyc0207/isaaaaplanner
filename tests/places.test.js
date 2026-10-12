@@ -60,3 +60,28 @@ describe('隨機再抓一批', () => {
     expect(sample(list, 12, 7)).not.toEqual(sample(list, 12, 8));
   });
 });
+
+describe('只要這條路上的店', () => {
+  it('認得出路名', async () => {
+    const { isRoad } = await import('../src/lib/places.js');
+    expect(isRoad({ types: ['route'], displayName: { text: 'X' } })).toBe(true);
+    expect(isRoad({ displayName: { text: '忠孝東路四段' } })).toBe(true);
+    expect(isRoad({ displayName: { text: '永康街' } })).toBe(true);
+    expect(isRoad({ types: ['tourist_attraction'], displayName: { text: '台北101' } })).toBe(false);
+  });
+  it('翻頁抓完只留地址在那條路上的', async () => {
+    globalThis.localStorage = { getItem: () => null, setItem: () => {}, removeItem: () => {} };
+    const { searchAlong } = await import('../src/lib/places.js');
+    const pages = [
+      { places: [{ id: 'a', shortFormattedAddress: '永康街6號' }, { id: 'b', shortFormattedAddress: '信義路二段1號' }], nextPageToken: 't2' },
+      { places: [{ id: 'c', formattedAddress: '106台北市大安區永康街31巷2號' }] },
+    ];
+    const bodies = [];
+    const fetchPage = async (url, init) => { bodies.push(JSON.parse(init.body)); return { ok: true, json: async () => pages[bodies.length - 1] }; };
+    const r = await searchAlong({ key: 'k', road: '永康街', latitude: 25, longitude: 121, fetchPage });
+    expect(r.places.map((p) => p.id)).toEqual(['a', 'c']);
+    expect(bodies).toHaveLength(2);
+    expect(bodies[0].textQuery).toBe('永康街 餐廳 小吃');
+    expect(bodies[1].pageToken).toBe('t2');
+  });
+});

@@ -707,3 +707,5 @@ details.section > summary { cursor: pointer; padding: 0.3rem 0; }
 /* 轉盤打卡 */
 .snap-wheel { position: absolute; right: 5px; top: 5px; background: var(--mustard); color: #2b2118; border: 1.5px solid var(--line); font-size: 0.68rem; font-weight: 900; padding: 0 0.35rem; border-radius: 999px; }
 .snap-how { display: flex; flex-direction: column; gap: 0.35rem; }
+.near-road { display: flex; align-items: center; gap: 0.45rem; margin-top: 0.4rem; font-weight: 700; font-size: 0.9rem; }
+.near-road input { width: 1.1rem; height: 1.1rem; accent-color: var(--accent); }

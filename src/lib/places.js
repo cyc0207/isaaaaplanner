@@ -11,7 +11,7 @@ const FIELDS = [
   'places.location', 'places.googleMapsUri', 'places.shortFormattedAddress', 'places.businessStatus',
   'places.priceLevel', 'places.priceRange',
 ].join(',');
-const PLACE_FIELDS = 'places.id,places.displayName,places.formattedAddress,places.location';
+const PLACE_FIELDS = 'places.id,places.displayName,places.formattedAddress,places.location,places.types';
 
 // 價位分三級；Google 沒標價的歸「未標價」
 export const PRICES = [['cheap', '$ 便宜'], ['mid', '$$ 中等'], ['high', '$$$ 貴'], ['none', '未標價']];
@@ -188,6 +188,47 @@ export async function searchNearby({ key, latitude, longitude, radius, kind = 'f
   return { places: body.places || [], cached: false };
 }
 
+// 查到的是一條路（Google 類型 route，或名字是「…路／街／大道／巷／段」）
+export function isRoad(p) {
+  return (p.types || []).includes('route') || /(路|街|大道|巷|段)$/.test(p.displayName?.text || '');
+}
+
+// 地址在這條路上嗎：「永康街6號」「106台北市大安區永康街6號」都算
+export function onRoad(address, road) {
+  return !!road && !!address && address.includes(road);
+}
+
+// 沿著一條路找：用 Text Search「路名 + 餐廳」，最多翻 3 頁（60 家），再只留地址在這條路上的
+export async function searchAlong({ key, road, latitude, longitude, kind = 'food', fetchPage = fetch }) {
+  const ck = `planner.places:${kind}:road:${road}`;
+  const cached = readCache(ck);
+  if (cached) return { places: cached, cached: true };
+  const all = [];
+  let pageToken;
+  for (let i = 0; i < 3; i++) {
+    const res = await fetchPage(TEXT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Goog-Api-Key': key, 'X-Goog-FieldMask': `${FIELDS},nextPageToken` },
+      body: JSON.stringify({
+        textQuery: `${road} ${kind === 'drink' ? '飲料店 手搖飲' : '餐廳 小吃'}`,
+        pageSize: 20,
+        languageCode: 'zh-TW',
+        regionCode: 'TW',
+        locationBias: { circle: { center: { latitude, longitude }, radius: 3000 } },
+        ...(pageToken ? { pageToken } : {}),
+      }),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(body?.error?.message || `HTTP ${res.status}`);
+    all.push(...(body.places || []));
+    pageToken = body.nextPageToken;
+    if (!pageToken) break;
+  }
+  const places = all.filter((p) => onRoad(p.shortFormattedAddress || p.formattedAddress, road));
+  writeCache(ck, places);
+  return { places, cached: false };
+}
+
 // 輸入街道、地址或地標，找出它的位置（用同一把 Places 金鑰的 Text Search，不用另外開 Geocoding）
 export async function findPlace({ key, text }) {
   const q = text.trim();
@@ -207,6 +248,7 @@ export async function findPlace({ key, text }) {
     address: p.formattedAddress || '',
     latitude: p.location.latitude,
     longitude: p.location.longitude,
+    road: isRoad(p) ? p.displayName?.text || q : null,
   }));
   writeCache(ck, found);
   return found;
