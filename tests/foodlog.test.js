@@ -73,3 +73,16 @@ describe('收藏', () => {
     expect(placeInfo({ id: 'g1', name: 'X', url: 'u', group: '日式' }, 'food')).toEqual({ name: 'X', placeId: 'g1', url: 'u', group: '日式', address: '', kind: 'food' });
   });
 });
+
+describe('實際吃的店', () => {
+  it('字條寫別家就以字條為準，不用轉盤的店家 id', async () => {
+    const { ateAt, differsFromPick } = await import('../src/lib/foodlog.js');
+    expect(ateAt({ note: '王而山 老賴', wheelPick: '無虞蒔堂', placeId: 'p1' })).toEqual({ name: '王而山 老賴', placeId: null });
+    expect(ateAt({ note: '無虞蒔堂 好吃', wheelPick: '無虞蒔堂', placeId: 'p1' })).toEqual({ name: '無虞蒔堂', placeId: 'p1' });
+    expect(ateAt({ note: '', wheelPick: '無虞蒔堂', placeId: 'p1' })).toEqual({ name: '無虞蒔堂', placeId: 'p1' });
+    expect(ateAt({ note: '自助餐' })).toEqual({ name: '自助餐', placeId: null });
+    expect(differsFromPick('王而山', '無虞蒔堂')).toBe(true);
+    expect(differsFromPick('無虞蒔堂', '無虞蒔堂')).toBe(false);
+    expect(differsFromPick('', '無虞蒔堂')).toBe(false);
+  });
+});

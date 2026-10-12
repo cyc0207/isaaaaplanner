@@ -4,7 +4,7 @@ import { db } from '../firebase.js';
 import { useData } from '../data.jsx';
 import { today, addDays, shortLabel } from '../lib/date.js';
 import { SLOTS } from '../lib/meals.js';
-import { LOG_SLOTS, DAYS, slotNow, photoStreak, WHEEL_SOURCES, lastSpin, forgetSpin, wheelLabel, RATINGS, RATING_TAG, reviewKey, toReview, reviewUpdate } from '../lib/foodlog.js';
+import { LOG_SLOTS, DAYS, slotNow, photoStreak, WHEEL_SOURCES, lastSpin, forgetSpin, wheelLabel, ateAt, differsFromPick, RATINGS, RATING_TAG, reviewKey, toReview, reviewUpdate } from '../lib/foodlog.js';
 import { compressPhoto } from '../lib/photo.js';
 import { money, Sheet } from './ui.jsx';
 
@@ -156,7 +156,19 @@ function SnapEditor({ draft, setDraft, onClose }) {
         </div>
         <label>
           吃了什麼（可不填）
-          <input value={draft.note} onChange={(e) => setDraft({ ...draft, note: e.target.value })} placeholder="例：自助餐三菜一肉" />
+          <input
+            value={draft.note}
+            onChange={(e) => {
+              const note = e.target.value;
+              // 改寫成別家，就不算轉盤打卡
+              const off = draft.fromWheel && differsFromPick(note, draft.wheelPick) && !differsFromPick(draft.note, draft.wheelPick);
+              setDraft({ ...draft, note, fromWheel: off ? false : draft.fromWheel });
+            }}
+            placeholder="例：自助餐三菜一肉"
+          />
+          {draft.wheelPick && differsFromPick(draft.note, draft.wheelPick) && (
+            <span className="muted small">你寫的不是轉盤轉到的「{draft.wheelPick}」，評分會記在「{draft.note.trim()}」。</span>
+          )}
         </label>
         <label>
           順便記帳：金額（可不填）
@@ -210,10 +222,10 @@ function SnapViewer({ item, onClose }) {
 export function useRate() {
   const { api, placeReviews } = useData();
   return (item, rating) => {
-    const name = (item.wheelPick || item.note || '').trim();
-    const key = reviewKey({ placeId: item.placeId, name });
+    const { name, placeId } = ateAt(item);
+    const key = reviewKey({ placeId, name });
     const ops = [{ set: `foodLog/${item.id}`, data: { rating, reviewSkipped: false } }];
-    if (key) ops.push({ set: `placeReviews/${key}`, merge: false, data: reviewUpdate(placeReviews[key], { name, placeId: item.placeId, rating }) });
+    if (key) ops.push({ set: `placeReviews/${key}`, merge: false, data: reviewUpdate(placeReviews[key], { name, placeId, rating }) });
     api.batch(ops);
   };
 }
@@ -244,7 +256,7 @@ function ReviewQueue({ items }) {
           <li key={it.id} className="review-item">
             <img src={it.thumb} alt="" />
             <div className="review-body">
-              <strong>{it.wheelPick || it.note}</strong>
+              <strong>{ateAt(it).name}</strong>
               <span className="muted small">{shortLabel(it.date)} {LOG_SLOTS[it.slot] || ''}{it.fromWheel ? '・轉盤' : ''}</span>
               <RateButtons item={it} />
               <button className="link small" onClick={() => api.set(`foodLog/${it.id}`, { reviewSkipped: true })}>

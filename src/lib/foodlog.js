@@ -99,3 +99,14 @@ export function favoritesOf(reviews, kind = 'food') {
     .map(([key, r]) => ({ id: r.placeId || key, key, name: r.name, url: r.url, group: r.group, address: r.address, rating: r.rating || null }))
     .sort((a, b) => a.name.localeCompare(b.name));
 }
+
+// 實際吃的是哪家：自己寫的字條優先；字條沒寫或就是轉盤那家，才用轉盤結果（和它的店家 id）
+export function ateAt(item) {
+  const note = (item.note || '').trim();
+  const pick = (item.wheelPick || '').trim();
+  if (note && (!pick || !note.includes(pick))) return { name: note, placeId: null };
+  return { name: pick || note, placeId: item.placeId || null };
+}
+
+// 寫的字條不是轉盤轉到的那家
+export const differsFromPick = (note, pick) => !!pick && !!note.trim() && !note.includes(pick);
