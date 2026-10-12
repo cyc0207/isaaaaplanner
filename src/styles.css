@@ -736,3 +736,6 @@ details.section > summary { cursor: pointer; padding: 0.3rem 0; }
 .place-acts .btn.on-bad { background: var(--over); color: #fbf5e6; }
 .fav-box { margin: 0.6rem 0; }
 .fav-box .list { margin-top: 0.5rem; }
+.near-picks .pick-row { display: flex; gap: 0.5rem; align-items: center; }
+.near-picks .pick-row .pick { flex: 1; min-width: 0; }
+.fav-btn.on-fav { background: var(--mustard); color: #2b2118; }

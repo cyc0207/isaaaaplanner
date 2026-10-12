@@ -11,7 +11,7 @@ const FIELDS = [
   'places.location', 'places.googleMapsUri', 'places.shortFormattedAddress', 'places.businessStatus',
   'places.priceLevel', 'places.priceRange',
 ].join(',');
-const PLACE_FIELDS = 'places.id,places.displayName,places.formattedAddress,places.location,places.types';
+const PLACE_FIELDS = 'places.id,places.displayName,places.formattedAddress,places.location,places.types,places.primaryType,places.googleMapsUri';
 
 // 價位分三級；Google 沒標價的歸「未標價」
 export const PRICES = [['cheap', '$ 便宜'], ['mid', '$$ 中等'], ['high', '$$$ 貴'], ['none', '未標價']];
@@ -284,6 +284,11 @@ export async function findPlace({ key, text }) {
     latitude: p.location.latitude,
     longitude: p.location.longitude,
     road: isRoad(p) ? p.displayName?.text || q : null,
+    // 查的是一家吃的店，就可以直接收藏
+    food: isFoodPlace(p),
+    name: p.displayName?.text || q,
+    url: p.googleMapsUri || '',
+    group: groupOf(p),
   }));
   writeCache(ck, found);
   return found;
