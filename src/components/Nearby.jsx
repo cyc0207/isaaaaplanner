@@ -7,7 +7,7 @@ import { RADII, PRICES, searchNearby, getPosition, findPlace, normalize, groupCo
 const KEY = import.meta.env.VITE_GOOGLE_MAPS_KEY || '';
 const MAX_ON_WHEEL = 12;
 
-const dist = (m) => (m == null ? '' : m < 1000 ? `${m} 公尺` : `${(m / 1000).toFixed(1)} 公里`);
+const dist = (m) => (m == null ? '' : m < 1000 ? `${m} 公尺` : `${+(m / 1000).toFixed(m < 10000 ? 1 : 0)} 公里`);
 
 // 附近餐廳轉盤：先抓定位，再用 Google 地圖找附近的店，依類型分組
 export default function Nearby() {

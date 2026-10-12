@@ -26,7 +26,7 @@ export function priceOf(p) {
 }
 // 只用很早就有的類型；新類型（例如台灣菜）會包含在 restaurant 裡
 const INCLUDED = ['restaurant', 'meal_takeaway', 'cafe', 'bakery'];
-export const RADII = [500, 1000, 2000, 5000];
+export const RADII = [500, 1000, 2000, 5000, 10000, 20000, 50000];
 const CACHE_MS = 6 * 60 * 60 * 1000;
 
 // 依類型分組；越前面越優先
