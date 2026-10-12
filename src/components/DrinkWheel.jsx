@@ -1,16 +1,18 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useData } from '../data.jsx';
-import { today } from '../lib/date.js';
+import { today, weekStart } from '../lib/date.js';
+import { useFoodLog } from './FoodLog.jsx';
 import { drinkOdds, drinkSegments } from '../lib/drinks.js';
 import Wheel from './Wheel.jsx';
 import { Sheet } from './ui.jsx';
 
 // 今天要不要喝飲料：預算快用完、全糖喝太多時，「不喝」的格子會變多
 export default function DrinkWheel() {
-  const { budget, expenses } = useData();
+  const { budget, expenses, uid } = useData();
   const day = today();
-  const odds = drinkOdds({ budget, expenses, day });
+  const logs = useFoodLog(uid, weekStart(day)) || [];
+  const odds = drinkOdds({ budget, expenses, day, logs });
   const segs = drinkSegments(odds);
   const [result, setResult] = useState(null);
   const total = odds.drink + odds.skip;
@@ -28,7 +30,7 @@ export default function DrinkWheel() {
           ))}
         </ul>
       </div>
-      <Wheel key={segs.length} options={segs} onResult={setResult} caption="格子比例依本週飲料預算、杯數和全糖杯數調整" />
+      <Wheel key={segs.length} options={segs} onResult={setResult} caption="格子比例依本週飲料預算、杯數（含飲料打卡）和全糖杯數調整" />
       {result && (
         <Sheet title={result.yes ? '喝！' : '今天不喝'} onClose={() => setResult(null)}>
           {result.yes ? (

@@ -864,3 +864,25 @@ details.section > summary { cursor: pointer; padding: 0.3rem 0; }
 .quote-text { font-family: 'Noto Serif TC', serif; font-weight: 900; font-size: 1.25rem; line-height: 1.5; margin: 0.5rem 0 0.6rem; }
 .quote-text.small-quote { font-size: 1rem; }
 .quote-list li { padding: 0.45rem 0; border-bottom: 1px dashed var(--line); gap: 0.5rem; }
+
+/* 投資儀表板 */
+.invest-meter { height: 14px; margin: 0.6rem 0 0.2rem; border: 2px solid var(--line); border-radius: 999px; background: var(--surface-2); overflow: hidden; }
+.invest-meter-fill { height: 100%; background: var(--teal); }
+.invest-chart { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; align-items: end; height: 170px; padding: 0.7rem 0.6rem 0.5rem; }
+.invest-col { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; min-width: 0; }
+.invest-bar { width: 70%; max-width: 34px; min-height: 2px; background: var(--teal); border: 2px solid var(--line); border-bottom: 0; border-radius: 4px 4px 0 0; }
+.invest-val { font-size: 0.62rem; font-weight: 700; white-space: nowrap; margin-bottom: 2px; font-variant-numeric: tabular-nums; }
+.invest-mon { font-size: 0.75rem; color: var(--muted); border-top: 2px solid var(--line); width: 100%; text-align: center; padding-top: 2px; }
+.invest-targets { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.5rem; }
+.invest-targets li { display: flex; flex-direction: column; gap: 0.3rem; }
+.invest-tbar { height: 10px; border: 2px solid var(--line); border-radius: 999px; background: var(--surface-2); overflow: hidden; }
+.invest-tbar div { height: 100%; background: var(--mustard); }
+.invest-recent li { padding: 0.35rem 0; border-bottom: 1px dashed var(--line); gap: 0.5rem; }
+
+/* 打卡：吃什麼類別、本週統計 */
+.seg.slots { grid-template-columns: repeat(3, 1fr); border-radius: 18px; gap: 2px; }
+.snap-stats { display: flex; flex-wrap: wrap; gap: 0.35rem; margin: 0.2rem 0 0.6rem; }
+.snap-stat { font-size: 0.8rem; font-weight: 700; border: 2px solid var(--line); border-radius: 999px; padding: 0.1rem 0.55rem; background: var(--surface-solid); }
+.snap-stat.drink { background: var(--accent-soft); }
+.snap-stat.over { background: var(--accent); color: #fff8ec; }
+.snap-filter { margin-bottom: 0.6rem; }

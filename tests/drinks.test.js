@@ -36,3 +36,23 @@ describe('今天要不要喝飲料', () => {
     expect(drinkGroupOf({ displayName: { text: '鮮果汁' }, primaryType: 'juice_shop' })).toBe('果汁・冰沙');
   });
 });
+
+describe('飲料打卡也算杯數', () => {
+  const budget = { categories: [{ name: '飲料', kind: 'perWeek', perItem: 60, perWeekCount: 3 }] };
+  const exp = (date, sugar = '微糖') => ({ type: 'expense', category: '飲料', date, amount: 50, drink: { size: '中', sugar } });
+  const snap = (date, sugar = null) => ({ slot: 'drink', date, sugar });
+  it('只有打卡沒記帳也算', () => {
+    const o = drinkOdds({ budget, expenses: [], day: '2026-10-14', logs: [snap('2026-10-12'), snap('2026-10-13'), snap('2026-10-14', '全糖')] });
+    expect(o.cups).toBe(3);
+    expect(o.today).toBe(1);
+    expect(o.reasons.join()).toContain('已經喝 3 杯');
+  });
+  it('同一天記帳又打卡不重複算', () => {
+    const o = drinkOdds({ budget, expenses: [exp('2026-10-13', '全糖')], day: '2026-10-14', logs: [snap('2026-10-13', '全糖'), snap('2026-10-12')] });
+    expect(o.cups).toBe(2);
+    expect(o.fullSugar).toBe(1);
+  });
+  it('上週的打卡不算', () => {
+    expect(drinkOdds({ budget, expenses: [], day: '2026-10-14', logs: [snap('2026-10-11')] }).cups).toBe(0);
+  });
+});
