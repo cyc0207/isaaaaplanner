@@ -17,6 +17,8 @@ import InboxPage from './pages/InboxPage.jsx';
 import EnglishPage from './pages/EnglishPage.jsx';
 import StudyPage from './pages/StudyPage.jsx';
 import { Icon } from './components/ui.jsx';
+import ErrorBoundary from './components/ErrorBoundary.jsx';
+import { onErrorShown } from './lib/errlog.js';
 import { inAppBrowser, isAndroid, chromeIntent } from './lib/inapp.js';
 
 export default function App() {
@@ -94,10 +96,15 @@ function Shell({ user }) {
   const data = useData();
   const location = useLocation();
   const override = getTodayOverride();
+  const [oops, setOops] = useState(null);
+  const newErrors = data.errorLog.filter((e) => !e.seen).length;
 
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [location.pathname]);
+
+  useEffect(() => onErrorShown(setOops), []);
+  const problem = data.error || oops;
 
   return (
     <div className="app">
@@ -115,30 +122,40 @@ function Shell({ user }) {
           </button>
         </div>
       )}
-      {data.error && (
-        <div className="error-banner" onClick={data.clearError}>
-          發生錯誤：{data.error}（點一下關閉）
+      {problem && (
+        <div
+          className="error-banner"
+          role="alert"
+          onClick={() => {
+            data.clearError();
+            setOops(null);
+          }}
+        >
+          <span>{data.error || '出了點小狀況，已經記下來了。'}</span>
+          <span className="small">{data.error ? '' : `（${oops}）`}點一下關閉</span>
         </div>
       )}
       <main className="main">
         {!data.loaded ? (
           <div className="splash">載入資料中…</div>
         ) : (
-          <Routes>
-            <Route path="/" element={<TodayPage />} />
-            <Route path="/week" element={<WeekPage />} />
-            <Route path="/month" element={<MonthPage />} />
-            <Route path="/money" element={<MoneyPage />} />
-            <Route path="/money/reconcile" element={<ReconcilePage />} />
-            <Route path="/close/:month" element={<MonthClosePage />} />
-            <Route path="/settings" element={<SettingsPage user={user} />} />
-            <Route path="/food" element={<FoodPage />} />
-            <Route path="/tarot" element={<TarotPage />} />
-            <Route path="/inbox" element={<InboxPage />} />
-            <Route path="/english" element={<EnglishPage />} />
-            <Route path="/study" element={<StudyPage />} />
-            <Route path="*" element={<TodayPage />} />
-          </Routes>
+          <ErrorBoundary resetKey={location.pathname}>
+            <Routes>
+              <Route path="/" element={<TodayPage />} />
+              <Route path="/week" element={<WeekPage />} />
+              <Route path="/month" element={<MonthPage />} />
+              <Route path="/money" element={<MoneyPage />} />
+              <Route path="/money/reconcile" element={<ReconcilePage />} />
+              <Route path="/close/:month" element={<MonthClosePage />} />
+              <Route path="/settings" element={<SettingsPage user={user} />} />
+              <Route path="/food" element={<FoodPage />} />
+              <Route path="/tarot" element={<TarotPage />} />
+              <Route path="/inbox" element={<InboxPage />} />
+              <Route path="/english" element={<EnglishPage />} />
+              <Route path="/study" element={<StudyPage />} />
+              <Route path="*" element={<TodayPage />} />
+            </Routes>
+          </ErrorBoundary>
         )}
       </main>
       <nav className="tabbar">
@@ -165,8 +182,9 @@ function Shell({ user }) {
           學習
         </NavLink>
       </nav>
-      <Link to="/settings" className="gear" aria-label="設定">
+      <Link to={newErrors ? '/settings#errors' : '/settings'} className="gear" aria-label={newErrors ? `設定（${newErrors} 個新錯誤）` : '設定'}>
         <Icon name="gear" />
+        {newErrors > 0 && <span className="gear-badge">{newErrors > 9 ? '9+' : newErrors}</span>}
       </Link>
     </div>
   );

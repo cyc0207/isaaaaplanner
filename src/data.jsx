@@ -6,6 +6,7 @@ import { db } from './firebase.js';
 import { seedDocs, v2SeedDocs } from './lib/seed.js';
 import { inboxDeadlines } from './lib/inbox.js';
 import { today, monthKey } from './lib/date.js';
+import { logError, setErrorUser } from './lib/errlog.js';
 
 const COLLECTIONS = [
   'tasks', 'deadlines', 'recurring', 'recurringDone', 'expenses', 'accounts', 'fixedItems', 'fixedPaid',
@@ -17,6 +18,8 @@ const COLLECTIONS = [
   'mail', 'englishItems', 'englishJournal',
   // 學習計畫：大目標、月目標、每週目標
   'studyGoals',
+  // 網站出錯的紀錄（src/lib/errlog.js 寫進來）
+  'errorLog',
 ];
 
 const DataContext = createContext(null);
@@ -61,12 +64,19 @@ export function DataProvider({ uid, children }) {
 
   useEffect(() => {
     setRaw({});
-    seedIfNeeded(uid).catch((e) => setError(friendlyError(e)));
+    setErrorUser(uid);
+    seedIfNeeded(uid).catch((e) => {
+      logError('建立資料', e, { show: false });
+      setError(friendlyError(e));
+    });
     const unsubs = COLLECTIONS.map((name) =>
       onSnapshot(
         collection(db, 'users', uid, name),
         (snap) => setRaw((r) => ({ ...r, [name]: snap.docs.map((d) => ({ id: d.id, ...d.data() })) })),
-        (e) => setError(friendlyError(e)),
+        (e) => {
+          logError(`讀取 ${name}`, e, { show: false });
+          setError(friendlyError(e));
+        },
       ),
     );
     return () => unsubs.forEach((u) => u());
@@ -74,6 +84,7 @@ export function DataProvider({ uid, children }) {
 
   const report = useCallback((e) => {
     console.error(e);
+    logError('存檔', e, { show: false });
     setError(friendlyError(e));
   }, []);
 
@@ -154,6 +165,7 @@ export function DataProvider({ uid, children }) {
       gmail: settings.gmail || {},
       englishItems: raw.englishItems || [],
       studyGoals: raw.studyGoals || [],
+      errorLog: (raw.errorLog || []).slice().sort((a, b) => (b.lastAt || 0) - (a.lastAt || 0)),
       englishJournal: byId('englishJournal'),
       englishSettings: settings.english || {},
       body: settings.body || null,

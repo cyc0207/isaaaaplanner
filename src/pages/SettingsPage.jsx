@@ -23,7 +23,7 @@ export default function SettingsPage({ user }) {
       <nav className="settings-nav">
         {[
           ['accounts', '帳戶'], ['budget', '預算'], ['fixed', '固定支出'], ['reconcile', '對帳'],
-          ['habits', '每日固定'], ['recurring', '每週固定'], ['import', '匯入／匯出'],
+          ['habits', '每日固定'], ['recurring', '每週固定'], ['import', '匯入／匯出'], ['errors', '錯誤紀錄'],
         ].map(([id, l]) => (
           <a key={id} href={`#${id}`} onClick={(e) => { e.preventDefault(); document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' }); }}>
             {l}
@@ -40,6 +40,7 @@ export default function SettingsPage({ user }) {
         <h2>匯入／匯出</h2>
         <ImportExport />
       </section>
+      <ErrorSettings />
       <section className="section">
         <h2>帳號</h2>
         <p className="muted">已登入：{user.email}</p>
@@ -446,6 +447,60 @@ function RecurringSettings() {
         <button className="btn">新增</button>
       </form>
       <p className="muted small">另外固定會有：每天英文 15 分鐘、每週日排下週、每月 1 號作上個月的帳。</p>
+    </section>
+  );
+}
+
+function ago(ms) {
+  const m = Math.round((Date.now() - ms) / 60000);
+  if (m < 1) return '剛剛';
+  if (m < 60) return `${m} 分鐘前`;
+  if (m < 60 * 24) return `${Math.round(m / 60)} 小時前`;
+  return `${Math.round(m / 60 / 24)} 天前`;
+}
+
+function ErrorSettings() {
+  const { errorLog, api } = useData();
+  const [open, setOpen] = useState(null);
+  const unseen = errorLog.filter((e) => !e.seen);
+  return (
+    <section className="section" id="errors">
+      <div className="row between">
+        <h2>錯誤紀錄{unseen.length > 0 && <span className="chip warn">{unseen.length} 個新的</span>}</h2>
+        {unseen.length > 0 && (
+          <button className="btn small" onClick={() => api.batch(unseen.map((e) => ({ set: `errorLog/${e.id}`, data: { seen: true } })))}>
+            都看過了
+          </button>
+        )}
+      </div>
+      {errorLog.length === 0 ? (
+        <p className="muted">目前沒有錯誤，一切正常。網站出錯時會記在這裡，右上角齒輪會出現紅點。</p>
+      ) : (
+        <>
+          <ul className="list settings-list error-log">
+            {errorLog.map((e) => (
+              <li key={e.id} className={e.seen ? '' : 'new'}>
+                <button className="link error-head" onClick={() => setOpen(open === e.id ? null : e.id)}>
+                  <span className="chip">{e.source}</span>
+                  <span className="grow">{e.message}</span>
+                </button>
+                <p className="muted small">
+                  {ago(e.lastAt)}・共 {e.count || 1} 次・在 {e.page || '/'}
+                </p>
+                {open === e.id && (
+                  <>
+                    {e.stack && <pre className="error-stack">{e.stack}</pre>}
+                    <p className="muted small">{e.ua}</p>
+                  </>
+                )}
+              </li>
+            ))}
+          </ul>
+          <button className="btn small danger" onClick={() => window.confirm('清空所有錯誤紀錄？') && api.batch(errorLog.map((e) => ({ remove: `errorLog/${e.id}` })))}>
+            清空紀錄
+          </button>
+        </>
+      )}
     </section>
   );
 }

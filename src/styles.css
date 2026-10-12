@@ -820,3 +820,19 @@ details.section > summary { cursor: pointer; padding: 0.3rem 0; }
 
 /* 錯誤訊息固定在上面，捲到哪裡都看得到 */
 .error-banner { position: sticky; top: 0; z-index: 20; border-bottom: 2px solid var(--line); font-weight: 700; }
+/* 錯誤提醒：齒輪紅點、出錯提示、壞掉的頁面、設定裡的錯誤紀錄 */
+.gear-badge { position: absolute; top: -6px; right: -6px; min-width: 22px; height: 22px; padding: 0 4px; display: grid; place-items: center; border-radius: 999px; background: var(--accent); color: #fff; border: 2px solid var(--line); font-family: var(--pixel); font-size: 0.85rem; line-height: 1; }
+.error-banner { display: flex; flex-wrap: wrap; gap: 0.2rem 0.5rem; align-items: baseline; color: var(--text); border-bottom: 2px solid var(--line); }
+.error-banner .small { color: var(--muted); font-size: 0.8rem; word-break: break-word; }
+.crash-card { margin-top: 2rem; border-left-width: 10px !important; border-left-color: var(--accent) !important; }
+.crash-card h2 { margin: 0 0 0.4rem; font-family: 'Noto Serif TC', serif; font-weight: 900; }
+.crash-card .btn { text-decoration: none; }
+.error-log li { display: block; }
+.error-log li.new { border-left-width: 8px; border-left-color: var(--accent); }
+.error-log .error-head { display: flex; gap: 0.5rem; align-items: flex-start; width: 100%; text-align: left; color: var(--text); font-weight: 700; word-break: break-word; }
+.error-log p { margin: 0.2rem 0 0; }
+.error-stack { max-height: 220px; overflow: auto; margin: 0.4rem 0 0; padding: 0.5rem; font-size: 0.72rem; white-space: pre-wrap; word-break: break-all; background: var(--surface-2); border: 1.5px solid var(--line); border-radius: 8px; }
+#errors h2 { display: flex; align-items: center; gap: 0.5rem; }
+.error-log + .btn { margin-top: 0.6rem; }
+.error-banner { padding-right: 4.2rem; }
+.gear { z-index: 21; }

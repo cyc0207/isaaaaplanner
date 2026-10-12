@@ -4,6 +4,7 @@ import Wheel from './Wheel.jsx';
 import { useData } from '../data.jsx';
 import { reviewOf, reviewKey, reviewUpdate, placeInfo, favoritesOf, RATING_TAG } from '../lib/foodlog.js';
 import { Sheet } from './ui.jsx';
+import { logError } from '../lib/errlog.js';
 import { RADII, PRICES, searchNearby, searchAlong, getPosition, findPlace, normalize, groupCounts, randomArea, mergePlaces, sample } from '../lib/places.js';
 
 const KEY = import.meta.env.VITE_GOOGLE_MAPS_KEY || '';
@@ -70,6 +71,8 @@ export default function Nearby() {
       setSeen([]);
       setMore({ status: 'idle', msg: '' });
     } catch (e) {
+      // 沒開定位權限是正常狀況，不算網站錯誤
+      if (!/定位/.test(e.message)) logError('附近餐廳', e, { show: false });
       setState({ status: 'error', list: [], error: e.message });
     }
   };
@@ -97,6 +100,7 @@ export default function Nearby() {
       setSeed((x) => x + 1);
       setMore({ status: 'idle', msg: merged.added ? `多了 ${merged.added} 家，現在共 ${merged.list.length} 家` : road ? (next.more ? '這次抓到的都看過了，再按一次換別的關鍵字' : '這條路上能找的都找過了') : '這次抓到的都看過了，再按一次換別的地方' });
     } catch (e) {
+      logError('附近餐廳', e, { show: false });
       setMore({ status: 'idle', msg: `沒抓到：${e.message}` });
     }
   };

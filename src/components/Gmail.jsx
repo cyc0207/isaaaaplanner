@@ -3,6 +3,7 @@ import { GoogleAuthProvider, reauthenticateWithPopup } from 'firebase/auth';
 import { auth } from '../firebase.js';
 import { useData } from '../data.jsx';
 import { today } from '../lib/date.js';
+import { logError } from '../lib/errlog.js';
 import { DEFAULT_QUERIES, searchIds, getMessage, guessDeadline } from '../lib/gmail.js';
 
 const SCOPE = 'https://www.googleapis.com/auth/gmail.readonly';
@@ -95,6 +96,7 @@ export function useGmailSync() {
       }
       setMsg(n ? `收到 ${n} 封新信。` : '沒有新信。');
     } catch (e) {
+      if (!/popup-closed|cancelled-popup/.test(e.code || '')) logError('Gmail 同步', e, { show: false });
       setMsg(explain(e));
     } finally {
       setBusy(false);
