@@ -7,6 +7,7 @@ import { SLOTS } from '../lib/meals.js';
 import { LOG_SLOTS, DAYS, slotNow, photoStreak, WHEEL_SOURCES, lastSpin, forgetSpin, wheelLabel, ateAt, differsFromPick, RATINGS, RATING_TAG, reviewKey, toReview, reviewUpdate } from '../lib/foodlog.js';
 import { compressPhoto } from '../lib/photo.js';
 import { money, Sheet } from './ui.jsx';
+import WeekRecap from './WeekRecap.jsx';
 
 // 只抓最近 30 天的縮圖，大圖點開才讀
 function useFoodLog(uid, from) {
@@ -25,6 +26,7 @@ export default function FoodLog() {
   const [draft, setDraft] = useState(null);
   const [viewing, setViewing] = useState(null);
   const [err, setErr] = useState('');
+  const [recap, setRecap] = useState(false);
 
   const pick = async (e) => {
     const file = e.target.files?.[0];
@@ -68,6 +70,11 @@ export default function FoodLog() {
         </label>
       </div>
       {err && <p className="hint warn">{err}</p>}
+      {items.length > 0 && (
+        <button className="btn wide recap-btn" onClick={() => setRecap(true)}>
+          一週吃什麼：做成 IG 圖
+        </button>
+      )}
       <ReviewQueue items={toReview(items)} />
 
       {!byDay.length && <p className="muted">還沒有打卡。吃之前拍一張，之後回頭看吃了什麼。</p>}
@@ -89,6 +96,7 @@ export default function FoodLog() {
       <p className="muted small">只顯示最近 {DAYS} 天。照片縮小後存在你自己的帳號裡。</p>
 
       {draft && <SnapEditor draft={draft} setDraft={setDraft} onClose={() => setDraft(null)} />}
+      {recap && <WeekRecap items={items} onClose={() => setRecap(false)} />}
       {viewing && <SnapViewer item={viewing} onClose={() => setViewing(null)} />}
     </section>
   );

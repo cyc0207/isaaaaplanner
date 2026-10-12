@@ -739,3 +739,8 @@ details.section > summary { cursor: pointer; padding: 0.3rem 0; }
 .near-picks .pick-row { display: flex; gap: 0.5rem; align-items: center; }
 .near-picks .pick-row .pick { flex: 1; min-width: 0; }
 .fav-btn.on-fav { background: var(--mustard); color: #2b2118; }
+/* 一週吃什麼 */
+.recap-btn { margin-bottom: 0.8rem; }
+.recap-format { margin-top: 0.5rem; }
+.recap-canvas { display: block; width: 100%; height: auto; margin: 0.7rem auto 0.3rem; border: 2px solid var(--line); border-radius: 10px; }
+.recap-canvas.story { width: auto; max-height: 56vh; max-width: 100%; }
