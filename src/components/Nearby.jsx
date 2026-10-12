@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import Wheel from './Wheel.jsx';
 import { useData } from '../data.jsx';
-import { reviewOf, RATING_TAG } from '../lib/foodlog.js';
+import { reviewOf, reviewKey, reviewUpdate, placeInfo, favoritesOf, RATING_TAG } from '../lib/foodlog.js';
 import { Sheet } from './ui.jsx';
 import { RADII, PRICES, searchNearby, searchAlong, getPosition, findPlace, normalize, groupCounts, randomPointIn, subRadius, mergePlaces, sample } from '../lib/places.js';
 
@@ -31,7 +31,9 @@ export default function Nearby() {
   // 查到的是一條路時，預設只放這條路上的店
   const [roadOnly, setRoadOnly] = useState(true);
   const [withBad, setWithBad] = useState(false);
-  const { placeReviews } = useData();
+  const { placeReviews, api } = useData();
+  const [favSpin, setFavSpin] = useState(false);
+  const [showFavs, setShowFavs] = useState(false);
 
   if (!KEY) {
     return (
@@ -123,15 +125,36 @@ export default function Nearby() {
   const priceOn = prices.length > 1;
   const list = priceOn ? all.filter((p) => !priceOff.includes(p.price)) : all;
   const groups = groupCounts(list);
-  // 複評過的店：踩雷預設不上轉盤，好吃的格子大一倍
-  const rated = list.map((p) => ({ ...p, rating: reviewOf(placeReviews, p)?.rating || null }));
+  // 評過的店：負評預設不上轉盤，好吃的格子大一倍
+  const rated = list.map((p) => { const r = reviewOf(placeReviews, p); return { ...p, rating: r?.rating || null, fav: !!r?.fav }; });
+  const favs = favoritesOf(placeReviews, kind).map((p) => ({ ...p, fav: true }));
+
+  // 收藏／負評：一按就存，再按一次取消
+  const keyOf = (p) => reviewKey({ placeId: p.placeId || p.id, name: p.name });
+  const toggleFav = (p) => {
+    const k = keyOf(p);
+    const on = !(placeReviews[k]?.fav);
+    api.set(`placeReviews/${k}`, { ...placeInfo(p, kind), fav: on, updatedAtMs: Date.now() });
+    if (result?.id === p.id) setResult({ ...result, fav: on });
+  };
+  const toggleBad = (p) => {
+    const k = keyOf(p);
+    const prev = placeReviews[k];
+    const data = prev?.rating === 'bad'
+      ? { rating: null, updatedAtMs: Date.now() }
+      : { ...placeInfo(p, kind), ...reviewUpdate(prev, { name: p.name, placeId: p.placeId || p.id, rating: 'bad' }) };
+    api.set(`placeReviews/${k}`, data);
+    if (result?.id === p.id) setResult({ ...result, rating: data.rating });
+  };
+  const act = { toggleFav, toggleBad };
   const badCount = rated.filter((p) => p.rating === 'bad').length;
   const shown = rated.filter((p) => !off.includes(p.group) && (withBad || p.rating !== 'bad'));
   const groupOptions = groups.filter((g) => !off.includes(g.name) && !excluded.includes(`g:${g.name}`)).map((g) => ({ id: `g:${g.name}`, name: g.name, group: g.name }));
   // 店太多時隨機挑 12 家上轉盤，可以換一批
   const placeOptions = sample(shown.filter((p) => !excluded.includes(p.id)), MAX_ON_WHEEL, seed)
     .map((p) => ({ ...p, placeId: p.id, weight: p.rating === 'good' ? 2 : 1 }));
-  const options = mode === 'group' ? groupOptions : placeOptions;
+  const favOptions = favs.filter((p) => !excluded.includes(p.id)).map((p) => ({ ...p, placeId: p.id, weight: p.rating === 'good' ? 2 : 1 }));
+  const options = favSpin ? favOptions : mode === 'group' ? groupOptions : placeOptions;
 
   return (
     <section className="section">
@@ -205,6 +228,32 @@ export default function Nearby() {
           </button>
         </div>
       </div>
+      {favs.length > 0 && (
+        <div className="card fav-box">
+          <div className="row between">
+            <button className="link strong" onClick={() => setShowFavs(!showFavs)} aria-expanded={showFavs}>
+              我的收藏（{favs.length}）{showFavs ? '收起' : '打開'}
+            </button>
+            {favs.length >= 2 && (
+              <button className={`btn small ${favSpin ? 'primary' : ''}`} onClick={() => { setFavSpin(!favSpin); setExcluded([]); setResult(null); }}>
+                {favSpin ? '回到附近的店' : '轉我的收藏'}
+              </button>
+            )}
+          </div>
+          {showFavs && (
+            <ul className="list">
+              {favs.map((p) => <PlaceRow key={p.id} p={p} act={act} />)}
+            </ul>
+          )}
+        </div>
+      )}
+      {favSpin && (
+        favOptions.length < 2 ? (
+          <p className="hint warn">能轉的收藏只剩 {favOptions.length} 家。<button className="link" onClick={() => setExcluded([])}>把拿掉的放回去</button></p>
+        ) : (
+          <Wheel key="fav" source={kind === 'drink' ? 'drink' : 'near'} options={favOptions} onResult={setResult} caption={`收藏的 ${favOptions.length} 家`} />
+        )
+      )}
       {state.status === 'error' && <p className="hint warn">找不到附近的店：{state.error}</p>}
       {state.status === 'ok' && !all.length && state.road && <p className="hint warn">「{state.road}」上沒找到{kind === 'drink' ? '飲料店' : '餐廳'}，把「只要這條路上的店」關掉改找附近試試。</p>}
       {state.status === 'ok' && !all.length && !state.road && <p className="hint warn">{kind === 'drink' ? '這個範圍內沒有找到飲料店' : '這個範圍內沒有找到餐廳'}，把範圍加大試試。</p>}
@@ -228,7 +277,7 @@ export default function Nearby() {
         </>
       )}
 
-      {list.length > 0 && (
+      {!favSpin && list.length > 0 && (
         <>
           <h3>類型（點一下可以拿掉）</h3>
           <div className="row gap wrap near-groups">
@@ -246,7 +295,7 @@ export default function Nearby() {
 
           {badCount > 0 && (
             <button className={`chip-btn ${withBad ? '' : 'off'} near-bad`} aria-pressed={withBad} onClick={() => { setWithBad(!withBad); setExcluded([]); }}>
-              {withBad ? `踩雷的 ${badCount} 家也放進來了` : `踩雷的 ${badCount} 家沒放進轉盤`}
+              {withBad ? `負評的 ${badCount} 家也放進來了` : `負評的 ${badCount} 家沒放進轉盤`}
             </button>
           )}
 
@@ -288,7 +337,7 @@ export default function Nearby() {
           <h3>{state.road ? `${state.road}上的店` : '附近的店'}（{shown.length}）</h3>
           <ul className="list">
             {shown.map((p) => (
-              <PlaceRow key={p.id} p={p} />
+              <PlaceRow key={p.id} p={p} act={act} />
             ))}
           </ul>
           <p className="muted small">資料來自 Google 地圖{state.cached ? '（6 小時內查過，用上次的結果）' : ''}。</p>
@@ -297,12 +346,12 @@ export default function Nearby() {
 
       {result && (
         <Sheet title="就決定是你了" onClose={() => setResult(null)}>
-          {mode === 'group' ? (
+          {mode === 'group' && !favSpin ? (
             <>
               <p className="wheel-result">{kind === 'drink' ? '喝' : '吃'}{result.name}</p>
               <ul className="list">
                 {shown.filter((p) => p.group === result.name).map((p) => (
-                  <PlaceRow key={p.id} p={p} />
+                  <PlaceRow key={p.id} p={p} act={act} />
                 ))}
               </ul>
             </>
@@ -312,9 +361,19 @@ export default function Nearby() {
                 <strong>{result.name}</strong>
                 <div className="muted small">{[result.typeLabel || result.group, result.priceLabel, dist(result.distance), result.address].filter(Boolean).join('・')}</div>
               </div>
-              <a className="btn primary big wide" href={result.url} target="_blank" rel="noreferrer">
-                在 Google 地圖打開
-              </a>
+              <div className="row gap place-acts">
+                <button className={`btn grow ${result.fav ? 'on-fav' : ''}`} onClick={() => toggleFav(result)} aria-pressed={!!result.fav}>
+                  {result.fav ? '已收藏' : '收藏'}
+                </button>
+                <button className={`btn grow ${result.rating === 'bad' ? 'on-bad' : ''}`} onClick={() => toggleBad(result)} aria-pressed={result.rating === 'bad'}>
+                  {result.rating === 'bad' ? '已負評' : '負評'}
+                </button>
+              </div>
+              {result.url && (
+                <a className="btn primary big wide" href={result.url} target="_blank" rel="noreferrer">
+                  在 Google 地圖打開
+                </a>
+              )}
               {kind === 'drink' && (
                 <Link className="btn big wide" to={`/money?drink=1&note=${encodeURIComponent(result.name)}`}>
                   買了，記一筆飲料
@@ -338,16 +397,28 @@ export default function Nearby() {
   );
 }
 
-function PlaceRow({ p }) {
+function PlaceRow({ p, act }) {
   return (
-    <li className="meal-choice">
+    <li className="meal-choice place-row">
       <span className="meal-line">
-        <strong>{p.name}{p.rating && <span className={`rate-tag ${p.rating}`}>{RATING_TAG[p.rating]}</span>}</strong>
+        <strong>
+          {p.name}
+          {p.fav && <span className="rate-tag fav">收藏</span>}
+          {p.rating && <span className={`rate-tag ${p.rating}`}>{RATING_TAG[p.rating]}</span>}
+        </strong>
         <span className="muted">{[p.group, p.priceLabel, dist(p.distance), p.address].filter(Boolean).join('・')}</span>
+        {act && (
+          <span className="row-acts">
+            <button className="link small" onClick={() => act.toggleFav(p)}>{p.fav ? '取消收藏' : '收藏'}</button>
+            <button className="link small" onClick={() => act.toggleBad(p)}>{p.rating === 'bad' ? '取消負評' : '負評'}</button>
+          </span>
+        )}
       </span>
-      <a className="btn small" href={p.url} target="_blank" rel="noreferrer">
-        地圖
-      </a>
+      {p.url && (
+        <a className="btn small" href={p.url} target="_blank" rel="noreferrer">
+          地圖
+        </a>
+      )}
     </li>
   );
 }

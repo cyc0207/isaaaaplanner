@@ -59,9 +59,9 @@ export function wheelLabel(it) {
   return [WHEEL_SOURCES[it.wheelSource] || '轉盤', it.wheelPick].filter(Boolean).join('：');
 }
 
-// 複評：吃完回來評這家店。好吃的在附近轉盤格子大一倍，踩雷的預設不上轉盤
-export const RATINGS = [['good', '好吃，會再來'], ['ok', '普通'], ['bad', '踩雷']];
-export const RATING_TAG = { good: '好吃', ok: '普通', bad: '踩雷' };
+// 評分：吃完回來評這家店，或在轉盤直接按負評。好吃的在附近轉盤格子大一倍，負評的預設不上轉盤
+export const RATINGS = [['good', '好吃，會再來'], ['ok', '普通'], ['bad', '負評']];
+export const RATING_TAG = { good: '好吃', ok: '普通', bad: '負評' };
 
 // 評分存在 placeReviews：Google 地圖的店用店家 id，其他用名字
 export function reviewKey({ placeId, name }) {
@@ -86,4 +86,16 @@ export function reviewUpdate(prev, { name, placeId, rating, now = Date.now() }) 
   const counts = { good: 0, ok: 0, bad: 0, ...(prev?.counts || {}) };
   counts[rating] += 1;
   return { name, placeId: placeId || prev?.placeId || null, rating, counts, updatedAtMs: now };
+}
+
+// 收藏和負評都存在同一份 placeReviews，順便記下地圖連結，收藏清單不用再查 Google
+export function placeInfo(p, kind = 'food') {
+  return { name: p.name, placeId: p.placeId || p.id || null, url: p.url || '', group: p.group || '', address: p.address || '', kind };
+}
+
+export function favoritesOf(reviews, kind = 'food') {
+  return Object.entries(reviews)
+    .filter(([, r]) => r.fav && (r.kind || 'food') === kind)
+    .map(([key, r]) => ({ id: r.placeId || key, key, name: r.name, url: r.url, group: r.group, address: r.address, rating: r.rating || null }))
+    .sort((a, b) => a.name.localeCompare(b.name));
 }

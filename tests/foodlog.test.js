@@ -57,3 +57,19 @@ describe('複評', () => {
     expect(b).toEqual({ name: '拉麵', placeId: 'p1', rating: 'bad', counts: { good: 1, ok: 0, bad: 1 }, updatedAtMs: 2 });
   });
 });
+
+describe('收藏', () => {
+  it('只列收藏、分餐廳和飲料', async () => {
+    const { favoritesOf, placeInfo } = await import('../src/lib/foodlog.js');
+    const reviews = {
+      a: { name: '拉麵', fav: true, placeId: 'pa', url: 'u' },
+      b: { name: '奶茶', fav: true, kind: 'drink' },
+      c: { name: '便當', fav: false, rating: 'bad' },
+      n_阿姨: { name: '阿姨', fav: true, rating: 'good' },
+    };
+    expect(favoritesOf(reviews).map((f) => [f.id, f.name, f.rating])).toEqual(expect.arrayContaining([['n_阿姨', '阿姨', 'good'], ['pa', '拉麵', null]]));
+    expect(favoritesOf(reviews)).toHaveLength(2);
+    expect(favoritesOf(reviews, 'drink').map((f) => f.name)).toEqual(['奶茶']);
+    expect(placeInfo({ id: 'g1', name: 'X', url: 'u', group: '日式' }, 'food')).toEqual({ name: 'X', placeId: 'g1', url: 'u', group: '日式', address: '', kind: 'food' });
+  });
+});

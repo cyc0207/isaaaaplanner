@@ -727,3 +727,12 @@ details.section > summary { cursor: pointer; padding: 0.3rem 0; }
 .rate-btns .btn.on.rate-bad { background: var(--over); color: #fbf5e6; }
 .review-row { display: flex; flex-direction: column; gap: 0.35rem; margin: 0.5rem 0; }
 .near-bad { margin-bottom: 0.5rem; }
+/* 收藏、負評 */
+.rate-tag.fav { background: var(--mustard); color: #2b2118; }
+.row-acts { display: flex; gap: 0.9rem; }
+.row-acts .link { padding: 0.15rem 0; font-size: 0.8rem; }
+.place-acts { margin-bottom: 0.5rem; }
+.place-acts .btn.on-fav { background: var(--mustard); color: #2b2118; }
+.place-acts .btn.on-bad { background: var(--over); color: #fbf5e6; }
+.fav-box { margin: 0.6rem 0; }
+.fav-box .list { margin-top: 0.5rem; }

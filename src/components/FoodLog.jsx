@@ -238,7 +238,7 @@ function ReviewQueue({ items }) {
   return (
     <div className="card review-queue">
       <h3>複評：上次吃的怎麼樣？</h3>
-      <p className="muted small">評過的店會記住：踩雷的不再上附近轉盤，好吃的格子大一倍。</p>
+      <p className="muted small">評過的店會記住：負評的不再上附近轉盤，好吃的格子大一倍。</p>
       <ul className="list">
         {items.map((it) => (
           <li key={it.id} className="review-item">
