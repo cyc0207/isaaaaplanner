@@ -53,10 +53,10 @@ export default function Nearby() {
     try {
       const here = from ? { latitude: from.latitude, longitude: from.longitude } : await getPosition();
       const road = from?.road && ro ? from.road : null;
-      const { places, cached } = road
+      const res = road
         ? await searchAlong({ key: KEY, road, ...here, kind })
         : await searchNearby({ key: KEY, ...here, radius: r, kind });
-      setState({ status: 'ok', list: normalize(places, here, kind, road ? null : r), error: '', cached, here, radius: r, road });
+      setState({ status: 'ok', list: normalize(res.places, here, kind, road ? null : r), error: '', cached: res.cached, here, radius: r, road, batch: 0, more: !!res.more });
       setMore({ status: 'idle', msg: '' });
     } catch (e) {
       setState({ status: 'error', list: [], error: e.message });
@@ -65,15 +65,24 @@ export default function Nearby() {
 
   // 在範圍內隨機挑一個點再找一批，跟原本的合併（Google 一次最多給 20 家）
   const loadMore = async () => {
-    const { here, radius: r } = state;
+    const { here, radius: r, road } = state;
     setMore({ status: 'loading', msg: '' });
     try {
-      const pt = randomPointIn(here, r);
-      const { places } = await searchNearby({ key: KEY, ...pt, radius: subRadius(r), kind });
-      const merged = mergePlaces(state.list, normalize(places, here, kind, r));
-      setState((s) => ({ ...s, list: merged.list }));
+      let places;
+      let next = {};
+      if (road) {
+        // 沿著路：換下一組關鍵字
+        const res = await searchAlong({ key: KEY, road, ...here, kind, batch: state.batch + 1 });
+        places = res.places;
+        next = { batch: state.batch + 1, more: res.more };
+      } else {
+        const pt = randomPointIn(here, r);
+        places = (await searchNearby({ key: KEY, ...pt, radius: subRadius(r), kind })).places;
+      }
+      const merged = mergePlaces(state.list, normalize(places, here, kind, road ? null : r));
+      setState((s) => ({ ...s, ...next, list: merged.list }));
       setSeed((x) => x + 1);
-      setMore({ status: 'idle', msg: merged.added ? `多了 ${merged.added} 家，現在共 ${merged.list.length} 家` : '這次抓到的都看過了，再按一次換別的地方' });
+      setMore({ status: 'idle', msg: merged.added ? `多了 ${merged.added} 家，現在共 ${merged.list.length} 家` : road ? (next.more ? '這次抓到的都看過了，再按一次換別的關鍵字' : '這條路上能找的都找過了') : '這次抓到的都看過了，再按一次換別的地方' });
     } catch (e) {
       setMore({ status: 'idle', msg: `沒抓到：${e.message}` });
     }
@@ -256,9 +265,9 @@ export default function Nearby() {
             </button>
           )}
 
-          {!state.road && (
+          {(!state.road || state.more) && (
             <button className="btn wide" onClick={loadMore} disabled={more.status === 'loading'}>
-              {more.status === 'loading' ? '抓抓看…' : '隨機換個地方，再抓一批'}
+              {more.status === 'loading' ? '抓抓看…' : state.road ? '換別的關鍵字，再抓一批' : '隨機換個地方，再抓一批'}
             </button>
           )}
           {more.msg && <p className="hint">{more.msg}</p>}

@@ -62,6 +62,14 @@ describe('隨機再抓一批', () => {
 });
 
 describe('只要這條路上的店', () => {
+  it('只留吃的：按摩、診所不算', async () => {
+    const { isFoodPlace } = await import('../src/lib/places.js');
+    expect(isFoodPlace({ primaryType: 'cantonese_restaurant' })).toBe(true);
+    expect(isFoodPlace({ types: ['food', 'store'] })).toBe(true);
+    expect(isFoodPlace({ primaryType: 'tea_house' })).toBe(true);
+    expect(isFoodPlace({ primaryType: 'massage', types: ['spa', 'health'] })).toBe(false);
+    expect(isFoodPlace({ primaryType: 'dentist', types: ['health'] })).toBe(false);
+  });
   it('認得出路名', async () => {
     const { isRoad } = await import('../src/lib/places.js');
     expect(isRoad({ types: ['route'], displayName: { text: 'X' } })).toBe(true);
@@ -73,15 +81,22 @@ describe('只要這條路上的店', () => {
     globalThis.localStorage = { getItem: () => null, setItem: () => {}, removeItem: () => {} };
     const { searchAlong } = await import('../src/lib/places.js');
     const pages = [
-      { places: [{ id: 'a', shortFormattedAddress: '永康街6號' }, { id: 'b', shortFormattedAddress: '信義路二段1號' }], nextPageToken: 't2' },
-      { places: [{ id: 'c', formattedAddress: '106台北市大安區永康街31巷2號' }] },
+      { places: [{ id: 'a', types: ['restaurant'], shortFormattedAddress: '永康街6號' }, { id: 'b', types: ['restaurant'], shortFormattedAddress: '信義路二段1號' }, { id: 'm', primaryType: 'massage', types: ['spa', 'health'], shortFormattedAddress: '永康街9號' }], nextPageToken: 't2' },
+      { places: [{ id: 'c', primaryType: 'chinese_restaurant', formattedAddress: '106台北市大安區永康街31巷2號' }] },
     ];
     const bodies = [];
-    const fetchPage = async (url, init) => { bodies.push(JSON.parse(init.body)); return { ok: true, json: async () => pages[bodies.length - 1] }; };
-    const r = await searchAlong({ key: 'k', road: '永康街', latitude: 25, longitude: 121, fetchPage });
-    expect(r.places.map((p) => p.id)).toEqual(['a', 'c']);
-    expect(bodies).toHaveLength(2);
-    expect(bodies[0].textQuery).toBe('永康街 餐廳 小吃');
+    const fetchPage2 = async (url, init) => {
+      const b = JSON.parse(init.body); bodies.push(b);
+      if (b.textQuery === '永康街 小吃') return { ok: true, json: async () => ({ places: [{ id: 'a', types: ['restaurant'], shortFormattedAddress: '永康街6號' }, { id: 'd', types: ['meal_takeaway', 'food'], shortFormattedAddress: '永康街8號' }] }) };
+      return { ok: true, json: async () => (b.pageToken ? pages[1] : pages[0]) };
+    };
+    const r = await searchAlong({ key: 'k', road: '永康街', latitude: 25, longitude: 121, fetchPage: fetchPage2 });
+    expect(r.places.map((p) => p.id)).toEqual(['a', 'c', 'd']);
+    expect(bodies.map((b) => b.textQuery)).toEqual(['永康街 餐廳', '永康街 餐廳', '永康街 小吃', '永康街 便當 自助餐', '永康街 便當 自助餐']);
     expect(bodies[1].pageToken).toBe('t2');
+    expect(r.more).toBe(true);
+    const last = await searchAlong({ key: 'k', road: '永康街', latitude: 25, longitude: 121, batch: 5, fetchPage: fetchPage2 });
+    expect(last.words).toEqual(['咖啡 甜點', '泰式 越南', '粥 宵夜']);
+    expect(last.more).toBe(false);
   });
 });

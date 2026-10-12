@@ -198,11 +198,27 @@ export function onRoad(address, road) {
   return !!road && !!address && address.includes(road);
 }
 
-// 沿著一條路找：用 Text Search「路名 + 餐廳」，最多翻 3 頁（60 家），再只留地址在這條路上的
-export async function searchAlong({ key, road, latitude, longitude, kind = 'food', fetchPage = fetch }) {
-  const ck = `planner.places:${kind}:road:${road}`;
+// 沿著一條路找：Text Search 一次一組關鍵字最多 60 家，所以換好幾組關鍵字找，
+// 再只留餐飲類、地址在這條路上的。一批用 3 組，按「再抓一批」換下 3 組。
+export const ROAD_KEYWORDS = {
+  food: [
+    '餐廳', '小吃', '便當 自助餐', '早餐 早午餐', '麵 水餃', '燒臘 飯', '健康餐 沙拉', '素食',
+    '拉麵 日式', '韓式', '火鍋', '燒肉 牛排', '義大利麵 西式', '炸雞 漢堡', '鹹酥雞 滷味', '咖啡 甜點', '泰式 越南', '粥 宵夜',
+  ],
+  drink: ['飲料店', '手搖飲', '咖啡', '果汁 茶'],
+};
+export const ROAD_BATCH = 3;
+
+// Text Search 用關鍵字找，會混進按摩店、診所這種：只留餐飲類
+const FOOD_TYPES = /restaurant|^food$|meal_|cafe|coffee|bakery|dessert|confectioner|ice_cream|juice|tea|bar$|bistro|diner|deli|sandwich|snack|food_court|cafeteria/;
+export function isFoodPlace(p) {
+  return [p.primaryType, ...(p.types || [])].some((t) => t && FOOD_TYPES.test(t));
+}
+
+async function textAll({ key, textQuery, latitude, longitude, fetchPage }) {
+  const ck = `planner.places:text:${textQuery}:${latitude.toFixed(3)},${longitude.toFixed(3)}`;
   const cached = readCache(ck);
-  if (cached) return { places: cached, cached: true };
+  if (cached) return cached;
   const all = [];
   let pageToken;
   for (let i = 0; i < 3; i++) {
@@ -210,11 +226,11 @@ export async function searchAlong({ key, road, latitude, longitude, kind = 'food
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-Goog-Api-Key': key, 'X-Goog-FieldMask': `${FIELDS},nextPageToken` },
       body: JSON.stringify({
-        textQuery: `${road} ${kind === 'drink' ? '飲料店 手搖飲' : '餐廳 小吃'}`,
+        textQuery,
         pageSize: 20,
         languageCode: 'zh-TW',
         regionCode: 'TW',
-        locationBias: { circle: { center: { latitude, longitude }, radius: 3000 } },
+        locationBias: { circle: { center: { latitude, longitude }, radius: 2000 } },
         ...(pageToken ? { pageToken } : {}),
       }),
     });
@@ -224,9 +240,23 @@ export async function searchAlong({ key, road, latitude, longitude, kind = 'food
     pageToken = body.nextPageToken;
     if (!pageToken) break;
   }
-  const places = all.filter((p) => onRoad(p.shortFormattedAddress || p.formattedAddress, road));
-  writeCache(ck, places);
-  return { places, cached: false };
+  writeCache(ck, all);
+  return all;
+}
+
+export async function searchAlong({ key, road, latitude, longitude, kind = 'food', batch = 0, fetchPage = fetch }) {
+  const words = ROAD_KEYWORDS[kind] || ROAD_KEYWORDS.food;
+  const these = words.slice(batch * ROAD_BATCH, (batch + 1) * ROAD_BATCH);
+  const seen = new Set();
+  const places = [];
+  for (const w of these) {
+    for (const p of await textAll({ key, textQuery: `${road} ${w}`, latitude, longitude, fetchPage })) {
+      if (seen.has(p.id) || !isFoodPlace(p) || !onRoad(p.shortFormattedAddress || p.formattedAddress, road)) continue;
+      seen.add(p.id);
+      places.push(p);
+    }
+  }
+  return { places, words: these, more: (batch + 1) * ROAD_BATCH < words.length };
 }
 
 // 輸入街道、地址或地標，找出它的位置（用同一把 Places 金鑰的 Text Search，不用另外開 Geocoding）
