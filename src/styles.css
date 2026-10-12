@@ -704,3 +704,6 @@ details.section > summary { cursor: pointer; padding: 0.3rem 0; }
 .near-picks { margin-top: 0.4rem; }
 .near-picks .pick { display: flex; flex-direction: column; align-items: flex-start; gap: 0.1rem; width: 100%; text-align: left; background: var(--surface-solid); border: 2px solid var(--line); border-radius: 12px; padding: 0.45rem 0.7rem; color: inherit; font: inherit; cursor: pointer; }
 .near-picks .pick:active { transform: translate(2px, 2px); }
+/* 轉盤打卡 */
+.snap-wheel { position: absolute; right: 5px; top: 5px; background: var(--mustard); color: #2b2118; border: 1.5px solid var(--line); font-size: 0.68rem; font-weight: 900; padding: 0 0.35rem; border-radius: 999px; }
+.snap-how { display: flex; flex-direction: column; gap: 0.35rem; }

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { wheelSegments, pickSegment } from '../lib/meals.js';
 import { money } from './ui.jsx';
+import { rememberSpin } from '../lib/foodlog.js';
 
 const COLORS = ['var(--wheel-1)', 'var(--wheel-2)', 'var(--wheel-3)', 'var(--wheel-4)'];
 const SPIN_MS = 2600;
@@ -16,7 +17,7 @@ function arc(cx, cy, r, a0, a1) {
 const short = (s) => (s.length > 7 ? `${s.slice(0, 6)}…` : s);
 
 // 轉盤：轉完呼叫 onResult(meal)。點轉盤可以直接跳到結果。
-export default function Wheel({ options, onResult, caption }) {
+export default function Wheel({ options, onResult, caption, source }) {
   const segs = wheelSegments(options);
   const [rotation, setRotation] = useState(0);
   const [spinning, setSpinning] = useState(false);
@@ -28,7 +29,11 @@ export default function Wheel({ options, onResult, caption }) {
   const finish = () => {
     clearTimeout(timer.current);
     setSpinning(false);
-    if (target.current) onResult(target.current);
+    if (target.current) {
+      // 記住轉出來的結果，之後拍照打卡會標成「轉盤打卡」
+      if (source) rememberSpin(source, target.current.name);
+      onResult(target.current);
+    }
     target.current = null;
   };
 

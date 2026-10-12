@@ -227,6 +227,7 @@ export default function Nearby() {
           ) : (
             <Wheel
               key={mode}
+              source={kind === 'drink' ? 'drink' : 'near'}
               options={options}
               onResult={setResult}
               caption={mode === 'group' ? `${options.length} 種類型` : shown.length > MAX_ON_WHEEL ? `隨機 ${options.length} 家（共 ${shown.length} 家）` : `${options.length} 家`}
@@ -277,6 +278,7 @@ export default function Nearby() {
                   買了，記一筆飲料
                 </Link>
               )}
+              <Link className="btn big wide" to="/food?tab=snap">拍照打卡（記成轉盤打卡）</Link>
             </>
           )}
           <button

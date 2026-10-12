@@ -144,7 +144,7 @@ function NextMeal({ wheel }) {
               )}
             </p>
           ) : (
-            <Wheel options={wheelOptions} onResult={setResult} />
+            <Wheel options={wheelOptions} onResult={setResult} source="meals" />
           )}
           <button className="link center-block" onClick={() => setShowWheel(false)}>
             回到建議
@@ -173,6 +173,7 @@ function NextMeal({ wheel }) {
             </button>
           </div>
           <p className="muted small">按「就吃這個」會記一筆 {nm.slotName} {money(result.price)}。</p>
+          <Link className="btn wide" to="/food?tab=snap">吃之前拍照打卡（記成轉盤打卡）</Link>
         </Sheet>
       )}
     </section>

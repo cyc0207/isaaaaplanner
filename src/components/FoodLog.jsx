@@ -4,7 +4,7 @@ import { db } from '../firebase.js';
 import { useData } from '../data.jsx';
 import { today, addDays, shortLabel } from '../lib/date.js';
 import { SLOTS } from '../lib/meals.js';
-import { LOG_SLOTS, DAYS, slotNow, photoStreak } from '../lib/foodlog.js';
+import { LOG_SLOTS, DAYS, slotNow, photoStreak, WHEEL_SOURCES, lastSpin, forgetSpin, wheelLabel } from '../lib/foodlog.js';
 import { compressPhoto } from '../lib/photo.js';
 import { money, Sheet } from './ui.jsx';
 
@@ -33,7 +33,8 @@ export default function FoodLog() {
     setErr('');
     try {
       const photo = await compressPhoto(file);
-      setDraft({ ...photo, slot: slotNow(), note: '', amount: '' });
+      const spin = lastSpin();
+      setDraft({ ...photo, slot: slotNow(), note: spin?.name || '', amount: '', fromWheel: !!spin, wheelSource: spin?.source || null, wheelPick: spin?.name || '' });
     } catch {
       setErr('這張照片讀不出來，換一張試試。');
     }
@@ -49,6 +50,7 @@ export default function FoodLog() {
   }
   const streak = photoStreak(items.map((i) => i.date), t);
   const todayCount = items.filter((i) => i.date === t).length;
+  const wheelCount = items.filter((i) => i.fromWheel).length;
 
   return (
     <section className="section">
@@ -58,6 +60,7 @@ export default function FoodLog() {
             <span className="snap-count">{streak}</span> 天連續打卡
           </div>
           <div className="muted small">今天拍了 {todayCount} 張</div>
+          {items.length > 0 && <div className="muted small">轉盤打卡 {wheelCount}／{items.length} 次</div>}
         </div>
         <label className="btn primary big snap-btn">
           拍照或選照片
@@ -75,6 +78,7 @@ export default function FoodLog() {
               <button key={it.id} className="snap" onClick={() => setViewing(it)} aria-label={`${LOG_SLOTS[it.slot] || ''} ${it.note || ''}`}>
                 <img src={it.thumb} alt="" />
                 <span className="snap-tag">{LOG_SLOTS[it.slot] || '其他'}</span>
+                {it.fromWheel && <span className="snap-wheel">轉盤</span>}
               </button>
             ))}
           </div>
@@ -113,9 +117,13 @@ function SnapEditor({ draft, setDraft, onClose }) {
     ops.push({ set: `foodPhotos/${id}`, merge: false, data: { data: draft.full } });
     ops.push({
       set: `foodLog/${id}`, merge: false,
-      data: { date: day, slot: draft.slot, note: draft.note.trim(), thumb: draft.thumb, expenseId, createdAtMs: Date.now() },
+      data: {
+        date: day, slot: draft.slot, note: draft.note.trim(), thumb: draft.thumb, expenseId, createdAtMs: Date.now(),
+        fromWheel: draft.fromWheel, wheelSource: draft.fromWheel ? draft.wheelSource : null, wheelPick: draft.fromWheel ? draft.wheelPick : '',
+      },
     });
     api.batch(ops);
+    forgetSpin();
     onClose();
   };
   return (
@@ -128,6 +136,20 @@ function SnapEditor({ draft, setDraft, onClose }) {
               {l}
             </button>
           ))}
+        </div>
+        <div className="snap-how">
+          <span className="small strong">這餐怎麼決定的？</span>
+          <div className="seg two">
+            <button type="button" className={draft.fromWheel ? 'on' : ''} onClick={() => setDraft({ ...draft, fromWheel: true })}>
+              轉盤轉的
+            </button>
+            <button type="button" className={!draft.fromWheel ? 'on' : ''} onClick={() => setDraft({ ...draft, fromWheel: false })}>
+              自己選的
+            </button>
+          </div>
+          {draft.fromWheel && draft.wheelSource && (
+            <span className="muted small">剛剛{WHEEL_SOURCES[draft.wheelSource]}轉到「{draft.wheelPick}」</span>
+          )}
         </div>
         <label>
           吃了什麼（可不填）
@@ -163,6 +185,12 @@ function SnapViewer({ item, onClose }) {
     <Sheet title={`${shortLabel(item.date)} ${LOG_SLOTS[item.slot] || ''}`} onClose={onClose}>
       <img className="snap-preview" src={full || item.thumb} alt={item.note || '食物照片'} />
       {item.note && <p className="strong">{item.note}</p>}
+      <p className="muted small">
+        {item.fromWheel ? `轉盤打卡（${wheelLabel(item)}）` : '自己選的'}
+        <button className="link" onClick={() => { api.set(`foodLog/${item.id}`, { fromWheel: !item.fromWheel }); onClose(); }}>
+          {item.fromWheel ? '改成自己選的' : '改成轉盤轉的'}
+        </button>
+      </p>
       {item.expenseId && <p className="muted small">這次有一起記帳。</p>}
       <button className="btn danger" onClick={remove}>
         刪除
