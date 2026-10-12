@@ -85,6 +85,39 @@ export function normalize(places, here, kind = 'food', radius = null) {
     .sort((a, b) => (a.distance ?? 1e9) - (b.distance ?? 1e9));
 }
 
+// 「再抓一批」：在範圍內隨機挑一點，用小一點的半徑再找 20 家，跟原本的合併
+export function randomPointIn(center, radius, rnd = Math.random) {
+  const d = radius * 0.75 * Math.sqrt(rnd());
+  const t = 2 * Math.PI * rnd();
+  const dLat = (d * Math.cos(t)) / 111320;
+  const dLng = (d * Math.sin(t)) / (111320 * Math.cos((center.latitude * Math.PI) / 180));
+  return { latitude: center.latitude + dLat, longitude: center.longitude + dLng };
+}
+export const subRadius = (r) => Math.max(500, Math.round(r / 3));
+export function mergePlaces(list, more) {
+  const seen = new Set(list.map((p) => p.id));
+  const added = more.filter((p) => !seen.has(p.id) && seen.add(p.id));
+  return { list: [...list, ...added].sort((a, b) => (a.distance ?? 1e9) - (b.distance ?? 1e9)), added: added.length };
+}
+
+// 從清單隨機挑 n 個；同一個 seed 結果固定，畫面重畫不會一直換
+export function sample(list, n, seed) {
+  let a = seed >>> 0;
+  const rnd = () => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+  const arr = list.slice();
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(rnd() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr.slice(0, n);
+}
+
 export function groupCounts(list) {
   const m = new Map();
   for (const p of list) m.set(p.group, (m.get(p.group) || 0) + 1);

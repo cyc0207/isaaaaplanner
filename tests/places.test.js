@@ -38,3 +38,25 @@ describe('priceOf', () => {
     expect(priceOf({})).toEqual({ price: 'none', priceLabel: '' });
   });
 });
+
+describe('隨機再抓一批', () => {
+  it('隨機點落在範圍 75% 內', async () => {
+    const { randomPointIn, distanceM } = await import('../src/lib/places.js');
+    const c = { latitude: 25.03, longitude: 121.56 };
+    for (let i = 0; i < 200; i++) expect(distanceM(c, randomPointIn(c, 10000))).toBeLessThanOrEqual(7600);
+  });
+  it('合併時去掉重複、照距離排', async () => {
+    const { mergePlaces } = await import('../src/lib/places.js');
+    const r = mergePlaces([{ id: 'a', distance: 50 }, { id: 'b', distance: 300 }], [{ id: 'b', distance: 300 }, { id: 'c', distance: 100 }, { id: 'c', distance: 100 }]);
+    expect(r.added).toBe(1);
+    expect(r.list.map((p) => p.id)).toEqual(['a', 'c', 'b']);
+  });
+  it('sample 同 seed 結果固定、不同 seed 會換', async () => {
+    const { sample } = await import('../src/lib/places.js');
+    const list = Array.from({ length: 40 }, (_, i) => i);
+    expect(sample(list, 12, 7)).toEqual(sample(list, 12, 7));
+    expect(sample(list, 12, 7)).toHaveLength(12);
+    expect(new Set(sample(list, 12, 7)).size).toBe(12);
+    expect(sample(list, 12, 7)).not.toEqual(sample(list, 12, 8));
+  });
+});

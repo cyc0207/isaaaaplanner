@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import Wheel from './Wheel.jsx';
 import { Sheet } from './ui.jsx';
-import { RADII, PRICES, searchNearby, getPosition, findPlace, normalize, groupCounts } from '../lib/places.js';
+import { RADII, PRICES, searchNearby, getPosition, findPlace, normalize, groupCounts, randomPointIn, subRadius, mergePlaces, sample } from '../lib/places.js';
 
 const KEY = import.meta.env.VITE_GOOGLE_MAPS_KEY || '';
 const MAX_ON_WHEEL = 12;
@@ -24,6 +24,8 @@ export default function Nearby() {
   const [origin, setOrigin] = useState(null);
   const [where, setWhere] = useState('');
   const [picking, setPicking] = useState({ status: 'idle', list: [], error: '' });
+  const [seed, setSeed] = useState(() => Math.floor(Math.random() * 1e9));
+  const [more, setMore] = useState({ status: 'idle', msg: '' });
 
   if (!KEY) {
     return (
@@ -49,9 +51,26 @@ export default function Nearby() {
     try {
       const here = from ? { latitude: from.latitude, longitude: from.longitude } : await getPosition();
       const { places, cached } = await searchNearby({ key: KEY, ...here, radius: r, kind });
-      setState({ status: 'ok', list: normalize(places, here, kind, r), error: '', cached });
+      setState({ status: 'ok', list: normalize(places, here, kind, r), error: '', cached, here, radius: r });
+      setMore({ status: 'idle', msg: '' });
     } catch (e) {
       setState({ status: 'error', list: [], error: e.message });
+    }
+  };
+
+  // 在範圍內隨機挑一個點再找一批，跟原本的合併（Google 一次最多給 20 家）
+  const loadMore = async () => {
+    const { here, radius: r } = state;
+    setMore({ status: 'loading', msg: '' });
+    try {
+      const pt = randomPointIn(here, r);
+      const { places } = await searchNearby({ key: KEY, ...pt, radius: subRadius(r), kind });
+      const merged = mergePlaces(state.list, normalize(places, here, kind, r));
+      setState((s) => ({ ...s, list: merged.list }));
+      setSeed((x) => x + 1);
+      setMore({ status: 'idle', msg: merged.added ? `多了 ${merged.added} 家，現在共 ${merged.list.length} 家` : '這次抓到的都看過了，再按一次換別的地方' });
+    } catch (e) {
+      setMore({ status: 'idle', msg: `沒抓到：${e.message}` });
     }
   };
 
@@ -87,7 +106,8 @@ export default function Nearby() {
   const groups = groupCounts(list);
   const shown = list.filter((p) => !off.includes(p.group));
   const groupOptions = groups.filter((g) => !off.includes(g.name) && !excluded.includes(`g:${g.name}`)).map((g) => ({ id: `g:${g.name}`, name: g.name, group: g.name }));
-  const placeOptions = shown.filter((p) => !excluded.includes(p.id)).slice(0, MAX_ON_WHEEL);
+  // 店太多時隨機挑 12 家上轉盤，可以換一批
+  const placeOptions = sample(shown.filter((p) => !excluded.includes(p.id)), MAX_ON_WHEEL, seed);
   const options = mode === 'group' ? groupOptions : placeOptions;
 
   return (
@@ -209,10 +229,19 @@ export default function Nearby() {
               key={mode}
               options={options}
               onResult={setResult}
-              caption={mode === 'group' ? `${options.length} 種類型` : `最近的 ${options.length} 家${shown.length > MAX_ON_WHEEL ? `（共 ${shown.length} 家）` : ''}`}
+              caption={mode === 'group' ? `${options.length} 種類型` : shown.length > MAX_ON_WHEEL ? `隨機 ${options.length} 家（共 ${shown.length} 家）` : `${options.length} 家`}
             />
           )}
+          {mode === 'place' && shown.length > MAX_ON_WHEEL && (
+            <button className="btn wide" onClick={() => { setSeed((x) => x + 1); setExcluded([]); }}>
+              換一批上轉盤
+            </button>
+          )}
 
+          <button className="btn wide" onClick={loadMore} disabled={more.status === 'loading'}>
+            {more.status === 'loading' ? '抓抓看…' : '隨機換個地方，再抓一批'}
+          </button>
+          {more.msg && <p className="hint">{more.msg}</p>}
           <h3>附近的店（{shown.length}）</h3>
           <ul className="list">
             {shown.map((p) => (
