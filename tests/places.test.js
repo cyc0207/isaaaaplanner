@@ -100,3 +100,18 @@ describe('只要這條路上的店', () => {
     expect(last.more).toBe(false);
   });
 });
+
+describe('每次隨機進來', () => {
+  it('小範圍：中心在半徑一半內、用整個半徑；大範圍：中心在範圍內、半徑至少 1 公里', async () => {
+    const { randomArea, distanceM } = await import('../src/lib/places.js');
+    const c = { latitude: 25.03, longitude: 121.56 };
+    for (let i = 0; i < 100; i++) {
+      const a = randomArea(c, 1000);
+      expect(a.radius).toBe(1000);
+      expect(distanceM(c, a)).toBeLessThanOrEqual(380);
+      const b = randomArea(c, 20000);
+      expect(b.radius).toBe(6667);
+      expect(distanceM(c, b)).toBeLessThanOrEqual(15100);
+    }
+  });
+});

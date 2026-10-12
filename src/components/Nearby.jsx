@@ -4,7 +4,7 @@ import Wheel from './Wheel.jsx';
 import { useData } from '../data.jsx';
 import { reviewOf, reviewKey, reviewUpdate, placeInfo, favoritesOf, RATING_TAG } from '../lib/foodlog.js';
 import { Sheet } from './ui.jsx';
-import { RADII, PRICES, searchNearby, searchAlong, getPosition, findPlace, normalize, groupCounts, randomPointIn, subRadius, mergePlaces, sample } from '../lib/places.js';
+import { RADII, PRICES, searchNearby, searchAlong, getPosition, findPlace, normalize, groupCounts, randomArea, mergePlaces, sample } from '../lib/places.js';
 
 const KEY = import.meta.env.VITE_GOOGLE_MAPS_KEY || '';
 const MAX_ON_WHEEL = 12;
@@ -64,7 +64,7 @@ export default function Nearby() {
       const road = from?.road && ro ? from.road : null;
       const res = road
         ? await searchAlong({ key: KEY, road, ...here, kind })
-        : await searchNearby({ key: KEY, ...here, radius: r, kind });
+        : await searchNearby({ key: KEY, ...randomArea(here, r), kind, rank: 'DISTANCE' });
       setState({ status: 'ok', list: normalize(res.places, here, kind, road ? null : r), error: '', cached: res.cached, here, radius: r, road, batch: 0, more: !!res.more });
       setOnlyNew(false);
       setSeen([]);
@@ -87,8 +87,7 @@ export default function Nearby() {
         places = res.places;
         next = { batch: state.batch + 1, more: res.more };
       } else {
-        const pt = randomPointIn(here, r);
-        places = (await searchNearby({ key: KEY, ...pt, radius: subRadius(r), kind })).places;
+        places = (await searchNearby({ key: KEY, ...randomArea(here, r), kind, rank: 'DISTANCE' })).places;
       }
       const merged = mergePlaces(state.list, normalize(places, here, kind, road ? null : r).map((p) => ({ ...p, fresh: true })));
       // 新的少於 2 家轉不起來，就先不切
@@ -158,7 +157,9 @@ export default function Nearby() {
   };
   const act = { toggleFav, toggleBad };
   const badCount = rated.filter((p) => p.rating === 'bad').length;
-  const shown = rated.filter((p) => !off.includes(p.group) && (withBad || p.rating !== 'bad'));
+  // 收藏過的店不放進來（在「我的收藏」轉）
+  const favHidden = rated.filter((p) => p.fav).length;
+  const shown = rated.filter((p) => !p.fav && !off.includes(p.group) && (withBad || p.rating !== 'bad'));
   const groupOptions = groups.filter((g) => !off.includes(g.name) && !excluded.includes(`g:${g.name}`)).map((g) => ({ id: `g:${g.name}`, name: g.name, group: g.name }));
   // 店太多時隨機挑 12 家上轉盤，可以換一批
   const pool = shown.filter((p) => !excluded.includes(p.id));
@@ -310,6 +311,7 @@ export default function Nearby() {
               {onlyNew ? `只轉新抓到的 ${freshCount} 家（原本的不放）` : `原本的也一起轉（共 ${all.length} 家）`}
             </button>
           )}
+          {favHidden > 0 && <p className="muted small">收藏過的 {favHidden} 家沒放進來，要轉它們按上面的「轉我的收藏」。</p>}
           {badCount > 0 && (
             <button className={`chip-btn ${withBad ? '' : 'off'} near-bad`} aria-pressed={withBad} onClick={() => { setWithBad(!withBad); setExcluded([]); }}>
               {withBad ? `負評的 ${badCount} 家也放進來了` : `負評的 ${badCount} 家沒放進轉盤`}

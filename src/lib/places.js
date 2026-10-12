@@ -94,6 +94,11 @@ export function randomPointIn(center, radius, rnd = Math.random) {
   return { latitude: center.latitude + dLat, longitude: center.longitude + dLng };
 }
 export const subRadius = (r) => Math.max(500, Math.round(r / 3));
+// 每次找都在範圍內隨機挑一個中心，找它最近的 20 家，所以每次進來的店都不一樣
+export function randomArea(center, r, rnd = Math.random) {
+  if (r <= 1000) return { ...randomPointIn(center, r * 0.5, rnd), radius: r };
+  return { ...randomPointIn(center, r, rnd), radius: Math.max(1000, subRadius(r)) };
+}
 export function mergePlaces(list, more) {
   const seen = new Set(list.map((p) => p.id));
   const added = more.filter((p) => !seen.has(p.id) && seen.add(p.id));
@@ -162,7 +167,7 @@ async function fetchDrinks({ key, latitude, longitude, radius }) {
   return res;
 }
 
-export async function searchNearby({ key, latitude, longitude, radius, kind = 'food' }) {
+export async function searchNearby({ key, latitude, longitude, radius, kind = 'food', rank = null }) {
   const ck = cacheKey(latitude, longitude, radius, kind);
   const cached = readCache(ck);
   if (cached) return { places: cached, cached: true };
@@ -173,7 +178,7 @@ export async function searchNearby({ key, latitude, longitude, radius, kind = 'f
       includedTypes: INCLUDED,
       maxResultCount: 20,
       // 一次最多 20 家：近的範圍抓最近的，遠的範圍抓比較熱門的，才不會都擠在旁邊
-      rankPreference: radius <= 1000 ? 'DISTANCE' : 'POPULARITY',
+      rankPreference: rank || (radius <= 1000 ? 'DISTANCE' : 'POPULARITY'),
       languageCode: 'zh-TW',
       regionCode: 'TW',
       locationRestriction: { circle: { center: { latitude, longitude }, radius } },
