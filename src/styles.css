@@ -836,3 +836,31 @@ details.section > summary { cursor: pointer; padding: 0.3rem 0; }
 .error-log + .btn { margin-top: 0.6rem; }
 .error-banner { padding-right: 4.2rem; }
 .gear { z-index: 21; }
+
+/* 雷諾曼・西比拉小抽卡 */
+.tarot-card.oracle.lenormand { --band: var(--teal); }
+.tarot-card.oracle.sibilla { --band: var(--accent); }
+.oracle-row { display: grid; grid-template-columns: repeat(var(--n), minmax(0, 1fr)); gap: 0.5rem; margin: 0.6rem 0; }
+.oracle-row .tarot-card { width: 100%; max-width: 130px; padding: 4px; }
+.oracle-row .tarot-inner { border-top-width: 9px; padding: 0.35rem 0.15rem; gap: 0.2rem; }
+.oracle-row .tarot-num { font-size: 1.7rem; }
+.oracle-row .tarot-name { font-size: 1rem; }
+.oracle-row .tarot-mark { font-size: 0.6rem; padding: 0 0.35rem; }
+.oracle-row .tarot-en { font-size: 0.55rem; overflow-wrap: anywhere; }
+.oracle-topics { display: flex; flex-direction: column; gap: 0.9rem; }
+.oracle-topic h3 { margin: 0; }
+.oracle-topic { display: flex; flex-direction: column; gap: 0.5rem; }
+.oracle-sub { font-weight: 900; font-size: 0.85rem; border-bottom: 2px dashed var(--line); padding-bottom: 0.15rem; }
+.oracle-hint { flex-basis: 100%; }
+.oracle-sizes { margin: 0.6rem 0; }
+.oracle-free { margin-top: 0.7rem; }
+.oracle-home { display: flex; flex-direction: column; gap: 0.45rem; color: var(--text); text-decoration: none; }
+.oracle-home-row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; }
+.food-hero-oracle { display: block; margin: 0.1rem 0 0.5rem; font-size: 0.88rem; font-weight: 700; color: #2b2118; text-decoration: underline dashed; text-underline-offset: 3px; }
+.quote-card { margin: 0 0 1rem; padding: 0.8rem 0.9rem; background: var(--surface-solid); border: 2.5px solid var(--line); border-left: 10px solid var(--teal); border-radius: var(--radius); box-shadow: 4px 4px 0 var(--shadow); }
+.quote-head { display: flex; align-items: center; gap: 0.5rem; }
+.quote-head h2 { margin: 0; }
+.quote-mine { font-size: 0.72rem; font-weight: 700; border: 1.5px solid var(--teal); color: var(--teal); border-radius: 999px; padding: 0 0.45rem; }
+.quote-text { font-family: 'Noto Serif TC', serif; font-weight: 900; font-size: 1.25rem; line-height: 1.5; margin: 0.5rem 0 0.6rem; }
+.quote-text.small-quote { font-size: 1rem; }
+.quote-list li { padding: 0.45rem 0; border-bottom: 1px dashed var(--line); gap: 0.5rem; }

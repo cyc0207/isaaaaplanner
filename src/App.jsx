@@ -13,6 +13,7 @@ import MonthClosePage from './pages/MonthClosePage.jsx';
 import SettingsPage from './pages/SettingsPage.jsx';
 import FoodPage from './pages/FoodPage.jsx';
 import TarotPage from './pages/TarotPage.jsx';
+import OraclePage from './pages/OraclePage.jsx';
 import InboxPage from './pages/InboxPage.jsx';
 import EnglishPage from './pages/EnglishPage.jsx';
 import StudyPage from './pages/StudyPage.jsx';
@@ -150,6 +151,7 @@ function Shell({ user }) {
               <Route path="/settings" element={<SettingsPage user={user} />} />
               <Route path="/food" element={<FoodPage />} />
               <Route path="/tarot" element={<TarotPage />} />
+              <Route path="/oracle" element={<OraclePage />} />
               <Route path="/inbox" element={<InboxPage />} />
               <Route path="/english" element={<EnglishPage />} />
               <Route path="/study" element={<StudyPage />} />

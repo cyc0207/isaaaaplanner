@@ -20,6 +20,8 @@ const COLLECTIONS = [
   'studyGoals',
   // 網站出錯的紀錄（src/lib/errlog.js 寫進來）
   'errorLog',
+  // 雷諾曼／西比拉每日抽（oracleLog/{日期}）、動力小語（宸）自己新增的句子
+  'oracleLog', 'quotes',
 ];
 
 const DataContext = createContext(null);
@@ -158,6 +160,9 @@ export function DataProvider({ uid, children }) {
       mealsById: byId('meals'),
       weightLog: byId('weightLog'),
       tarotLog: byId('tarotLog'),
+      oracleLog: byId('oracleLog'),
+      quotes: (raw.quotes || []).slice().sort((a, b) => (a.createdAtMs || 0) - (b.createdAtMs || 0)),
+      quoteSettings: settings.quote || {},
       placeReviews: byId('placeReviews'),
       budgetChanges: (raw.budgetChanges || []).slice().sort((a, b) => (b.createdAtMs || 0) - (a.createdAtMs || 0)),
       inbox: raw.inbox || [],

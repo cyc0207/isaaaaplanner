@@ -133,7 +133,7 @@ async function copyText(text) {
   }
 }
 
-function CopyButton({ text, className = 'btn primary' }) {
+export function CopyButton({ text, className = 'btn primary' }) {
   const [done, setDone] = useState(false);
   return (
     <button
@@ -287,6 +287,7 @@ export default function TarotPage() {
         <h1>每日塔羅</h1>
         <span className="muted">{shortLabel(day)}</span>
       </header>
+      <Link to="/oracle" className="btn small">雷諾曼・西比拉小抽卡 →</Link>
 
       <section className="section tarot-main">
         {!cards ? (
