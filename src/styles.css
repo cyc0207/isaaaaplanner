@@ -726,7 +726,7 @@ details.section > summary { cursor: pointer; padding: 0.3rem 0; }
 .rate-btns .btn.on.rate-ok { background: var(--mustard); color: #2b2118; }
 .rate-btns .btn.on.rate-bad { background: var(--over); color: #fbf5e6; }
 .review-row { display: flex; flex-direction: column; gap: 0.35rem; margin: 0.5rem 0; }
-.near-bad { margin-bottom: 0.5rem; }
+.near-bad, .near-new { margin-bottom: 0.5rem; }
 /* 收藏、負評 */
 .rate-tag.fav { background: var(--mustard); color: #2b2118; }
 .row-acts { display: flex; gap: 0.9rem; }

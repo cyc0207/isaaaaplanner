@@ -27,6 +27,9 @@ export default function Nearby() {
   const [where, setWhere] = useState('');
   const [picking, setPicking] = useState({ status: 'idle', list: [], error: '' });
   const [seed, setSeed] = useState(() => Math.floor(Math.random() * 1e9));
+  // 再抓一批後預設只轉新抓到的；換一批時不重複上過轉盤的店
+  const [onlyNew, setOnlyNew] = useState(false);
+  const [seen, setSeen] = useState([]);
   const [more, setMore] = useState({ status: 'idle', msg: '' });
   // 查到的是一條路時，預設只放這條路上的店
   const [roadOnly, setRoadOnly] = useState(true);
@@ -63,6 +66,8 @@ export default function Nearby() {
         ? await searchAlong({ key: KEY, road, ...here, kind })
         : await searchNearby({ key: KEY, ...here, radius: r, kind });
       setState({ status: 'ok', list: normalize(res.places, here, kind, road ? null : r), error: '', cached: res.cached, here, radius: r, road, batch: 0, more: !!res.more });
+      setOnlyNew(false);
+      setSeen([]);
       setMore({ status: 'idle', msg: '' });
     } catch (e) {
       setState({ status: 'error', list: [], error: e.message });
@@ -85,7 +90,10 @@ export default function Nearby() {
         const pt = randomPointIn(here, r);
         places = (await searchNearby({ key: KEY, ...pt, radius: subRadius(r), kind })).places;
       }
-      const merged = mergePlaces(state.list, normalize(places, here, kind, road ? null : r));
+      const merged = mergePlaces(state.list, normalize(places, here, kind, road ? null : r).map((p) => ({ ...p, fresh: true })));
+      // 新的少於 2 家轉不起來，就先不切
+      if (merged.added >= 2) setOnlyNew(true);
+      setSeen([]);
       setState((s) => ({ ...s, ...next, list: merged.list }));
       setSeed((x) => x + 1);
       setMore({ status: 'idle', msg: merged.added ? `多了 ${merged.added} 家，現在共 ${merged.list.length} 家` : road ? (next.more ? '這次抓到的都看過了，再按一次換別的關鍵字' : '這條路上能找的都找過了') : '這次抓到的都看過了，再按一次換別的地方' });
@@ -123,7 +131,9 @@ export default function Nearby() {
   const prices = PRICES.map(([k, label]) => ({ key: k, label, count: all.filter((p) => p.price === k).length })).filter((p) => p.count);
   // 全部都同一級（常見是都沒標價）就不顯示價位篩選
   const priceOn = prices.length > 1;
-  const list = priceOn ? all.filter((p) => !priceOff.includes(p.price)) : all;
+  const freshCount = all.filter((p) => p.fresh).length;
+  const priced = priceOn ? all.filter((p) => !priceOff.includes(p.price)) : all;
+  const list = onlyNew && freshCount ? priced.filter((p) => p.fresh) : priced;
   const groups = groupCounts(list);
   // 評過的店：負評預設不上轉盤，好吃的格子大一倍
   const rated = list.map((p) => { const r = reviewOf(placeReviews, p); return { ...p, rating: r?.rating || null, fav: !!r?.fav }; });
@@ -151,7 +161,9 @@ export default function Nearby() {
   const shown = rated.filter((p) => !off.includes(p.group) && (withBad || p.rating !== 'bad'));
   const groupOptions = groups.filter((g) => !off.includes(g.name) && !excluded.includes(`g:${g.name}`)).map((g) => ({ id: `g:${g.name}`, name: g.name, group: g.name }));
   // 店太多時隨機挑 12 家上轉盤，可以換一批
-  const placeOptions = sample(shown.filter((p) => !excluded.includes(p.id)), MAX_ON_WHEEL, seed)
+  const pool = shown.filter((p) => !excluded.includes(p.id));
+  const unseen = pool.filter((p) => !seen.includes(p.id));
+  const placeOptions = sample(unseen.length >= 2 ? unseen : pool, MAX_ON_WHEEL, seed)
     .map((p) => ({ ...p, placeId: p.id, weight: p.rating === 'good' ? 2 : 1 }));
   const favOptions = favs.filter((p) => !excluded.includes(p.id)).map((p) => ({ ...p, placeId: p.id, weight: p.rating === 'good' ? 2 : 1 }));
   const options = favSpin ? favOptions : mode === 'group' ? groupOptions : placeOptions;
@@ -293,6 +305,11 @@ export default function Nearby() {
             ))}
           </div>
 
+          {freshCount > 0 && (
+            <button className={`chip-btn near-new ${onlyNew ? '' : 'off'}`} aria-pressed={onlyNew} onClick={() => { setOnlyNew(!onlyNew); setSeen([]); setExcluded([]); }}>
+              {onlyNew ? `只轉新抓到的 ${freshCount} 家（原本的不放）` : `原本的也一起轉（共 ${all.length} 家）`}
+            </button>
+          )}
           {badCount > 0 && (
             <button className={`chip-btn ${withBad ? '' : 'off'} near-bad`} aria-pressed={withBad} onClick={() => { setWithBad(!withBad); setExcluded([]); }}>
               {withBad ? `負評的 ${badCount} 家也放進來了` : `負評的 ${badCount} 家沒放進轉盤`}
@@ -323,8 +340,8 @@ export default function Nearby() {
             />
           )}
           {mode === 'place' && shown.length > MAX_ON_WHEEL && (
-            <button className="btn wide" onClick={() => { setSeed((x) => x + 1); setExcluded([]); }}>
-              換一批上轉盤
+            <button className="btn wide" onClick={() => { setSeen(unseen.length - placeOptions.length >= 2 ? [...seen, ...placeOptions.map((p) => p.id)] : []); setSeed((x) => x + 1); setExcluded([]); }}>
+              換一批上轉盤（不重複）
             </button>
           )}
 
