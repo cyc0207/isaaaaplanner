@@ -8,6 +8,7 @@ import { gmailLink } from '../lib/gmail.js';
 import { auth } from '../firebase.js';
 import { Sheet } from '../components/ui.jsx';
 import EnglishToday from '../components/EnglishToday.jsx';
+import { StudyNav } from './StudyPage.jsx';
 import { useGmailSync, SyncButton, QueryEditor } from '../components/Gmail.jsx';
 
 const TABS = [
@@ -23,8 +24,9 @@ export default function EnglishPage() {
   return (
     <div className="page">
       <header className="page-head">
-        <h1>英文</h1>
+        <h1>學習</h1>
       </header>
+      <StudyNav on="english" />
       <div className="tabs" role="tablist">
         {TABS.map(([k, l]) => (
           <button key={k} role="tab" aria-selected={tab === k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>

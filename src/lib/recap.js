@@ -29,13 +29,15 @@ export function pickPhotos(items, cap) {
 }
 
 // 幾張照片排幾欄幾列
-export function gridFor(n, format) {
+// 穿搭照是直的（3:4），一列可以多放幾張
+export function gridFor(n, format, kind = 'food') {
   const story = format === 'story';
   let cols;
   if (n <= 1) cols = 1;
+  else if (kind === 'ootd') cols = story ? (n <= 4 ? 2 : 3) : Math.min(4, n <= 4 ? n : Math.ceil(n / 2));
   else if (story) cols = n <= 2 ? 1 : n <= 6 ? 2 : 3;
   else cols = n <= 4 ? 2 : 3;
-  const maxRows = story ? (cols === 3 ? 4 : 3) : cols;
+  const maxRows = kind === 'ootd' ? (story ? 3 : 2) : story ? (cols === 3 ? 4 : 3) : cols;
   return { cols, rows: Math.min(maxRows, Math.ceil(Math.max(n, 1) / cols)) };
 }
 

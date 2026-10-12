@@ -15,6 +15,7 @@ import FoodPage from './pages/FoodPage.jsx';
 import TarotPage from './pages/TarotPage.jsx';
 import InboxPage from './pages/InboxPage.jsx';
 import EnglishPage from './pages/EnglishPage.jsx';
+import StudyPage from './pages/StudyPage.jsx';
 import { Icon } from './components/ui.jsx';
 
 export default function App() {
@@ -107,6 +108,7 @@ function Shell({ user }) {
             <Route path="/tarot" element={<TarotPage />} />
             <Route path="/inbox" element={<InboxPage />} />
             <Route path="/english" element={<EnglishPage />} />
+            <Route path="/study" element={<StudyPage />} />
             <Route path="*" element={<TodayPage />} />
           </Routes>
         )}
@@ -130,9 +132,9 @@ function Shell({ user }) {
           <Icon name="inbox" />
           收件匣
         </NavLink>
-        <NavLink to="/english">
+        <NavLink to="/study" className={location.pathname === '/english' ? 'active' : undefined}>
           <Icon name="english" />
-          英文
+          學習
         </NavLink>
       </nav>
       <Link to="/settings" className="gear" aria-label="設定">

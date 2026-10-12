@@ -10,7 +10,7 @@ import { money, Sheet } from './ui.jsx';
 import WeekRecap from './WeekRecap.jsx';
 
 // 只抓最近 30 天的縮圖，大圖點開才讀
-function useFoodLog(uid, from) {
+export function useFoodLog(uid, from) {
   const [items, setItems] = useState(null);
   useEffect(() => {
     const q = query(collection(db, 'users', uid, 'foodLog'), where('date', '>=', from));

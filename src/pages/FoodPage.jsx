@@ -9,6 +9,7 @@ import { ACTIVITY, latestWeight, calorieTarget, weightTrend, trendLabel } from '
 import { money, Sheet } from '../components/ui.jsx';
 import Wheel, { MealLine } from '../components/Wheel.jsx';
 import FoodLog from '../components/FoodLog.jsx';
+import OotdLog from '../components/OotdLog.jsx';
 import Nearby from '../components/Nearby.jsx';
 import DrinkWheel from '../components/DrinkWheel.jsx';
 
@@ -39,7 +40,15 @@ export default function FoodPage() {
       {tab === 'next' && <NextMeal wheel={params.get('wheel') === '1'} />}
       {tab === 'near' && <Nearby />}
       {tab === 'drink' && <DrinkWheel />}
-      {tab === 'snap' && <FoodLog />}
+      {tab === 'snap' && (
+        <>
+          <div className="seg two snap-what">
+            <button className={params.get('what') !== 'ootd' ? 'on' : ''} onClick={() => setParams({ tab: 'snap' })}>吃的</button>
+            <button className={params.get('what') === 'ootd' ? 'on' : ''} onClick={() => setParams({ tab: 'snap', what: 'ootd' })}>每日 OOTD</button>
+          </div>
+          {params.get('what') === 'ootd' ? <OotdLog /> : <FoodLog />}
+        </>
+      )}
       {tab === 'list' && <MealList />}
       {tab === 'body' && <Body />}
     </div>

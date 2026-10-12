@@ -15,6 +15,8 @@ const COLLECTIONS = [
   'tarotLog', 'placeReviews',
   // Gmail 收進來的信、英文卡片
   'mail', 'englishItems', 'englishJournal',
+  // 學習計畫：大目標、月目標、每週目標
+  'studyGoals',
 ];
 
 const DataContext = createContext(null);
@@ -141,6 +143,7 @@ export function DataProvider({ uid, children }) {
       mail: (raw.mail || []).slice().sort((a, b) => (b.ts || 0) - (a.ts || 0)),
       gmail: settings.gmail || {},
       englishItems: raw.englishItems || [],
+      studyGoals: raw.studyGoals || [],
       englishJournal: byId('englishJournal'),
       englishSettings: settings.english || {},
       body: settings.body || null,

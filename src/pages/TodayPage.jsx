@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useData } from '../data.jsx';
-import { today, weekday, weekDays, monthKey, monthLabel, dayInMonth, shortLabel, WEEKDAY_NAMES } from '../lib/date.js';
+import { today, weekday, weekDays, monthKey, monthLabel, dayInMonth, shortLabel, WEEKDAY_NAMES, addDays } from '../lib/date.js';
 import {
   todayTasks, overdueTasks, weekCompletion, habitStreak, pendingWeekly, nextDeadline, deadlineReminders,
   monthToClose, isReconcileDay, lastReconcile, fixedDue, recurringDoneId, MAX_TODAY,
@@ -15,6 +15,10 @@ import { AddTaskForm, TaskEditor, useTaskActions, payFixed } from '../components
 import { useNextMeal, useEatMeal, MealChoices } from './FoodPage.jsx';
 import { fullSugarCount, kcalToday } from '../lib/meals.js';
 import { latestWeight, needsWeighIn } from '../lib/body.js';
+import { useFoodLog } from '../components/FoodLog.jsx';
+import { OotdTodayCard } from '../components/OotdLog.jsx';
+import { StudyTodayCard } from './StudyPage.jsx';
+import { photoStreak, LOG_SLOTS } from '../lib/foodlog.js';
 
 export default function TodayPage() {
   const data = useData();
@@ -63,6 +67,13 @@ export default function TodayPage() {
       </header>
 
       <Reminders day={day} />
+
+      <FoodHero />
+
+      <section className="home-cards">
+        <OotdTodayCard />
+        <StudyTodayCard />
+      </section>
 
       <section className="dash">
         <div className="card ring-card">
@@ -118,7 +129,6 @@ export default function TodayPage() {
       </section>
 
       <TarotCard day={day} />
-      <NextMealCard />
 
       <section className="section">
         <h2>今天的三件事</h2>
@@ -329,42 +339,33 @@ function Reminders({ day }) {
   return <section className="reminders">{items}</section>;
 }
 
-function NextMealCard() {
+// 首頁最上面：吃什麼是主角
+function FoodHero() {
   const nm = useNextMeal();
   const eat = useEatMeal();
+  const { uid } = useData();
+  const t = today();
+  const log = useFoodLog(uid, addDays(t, -30)) || [];
   const [msg, setMsg] = useState('');
+  const todaySnaps = log.filter((i) => i.date === t).sort((a, b) => (a.createdAtMs || 0) - (b.createdAtMs || 0));
+  const streak = photoStreak(log.map((i) => i.date), t);
   return (
-    <section className="section">
-      <div className="row between">
-        <h2>
-          下一餐吃這個：{nm.tomorrow ? '明天' : ''}
+    <section className="food-hero">
+      <div className="food-hero-head">
+        <h2 className="food-hero-title">今天吃什麼</h2>
+        <span className="food-hero-slot">
+          下一餐：{nm.tomorrow ? '明天' : ''}
           {nm.slotName}
-        </h2>
-        <Link to="/food" className="link">
-          吃什麼 →
-        </Link>
+        </span>
       </div>
-      <div className="food-shortcuts">
-        <Link to="/food?wheel=1" className="btn small">
-          常吃的轉盤
-        </Link>
-        <Link to="/food?tab=near" className="btn small">
-          附近餐廳轉盤
-        </Link>
-        <Link to="/food?tab=snap" className="btn small">
-          拍照打卡
-        </Link>
-        <Link to="/food?tab=drink" className="btn small">
-          要不要喝飲料
-        </Link>
-        <Link to="/food?tab=near&kind=drink" className="btn small">
-          附近飲料店
-        </Link>
-      </div>
-      <p className="muted small">
+      <p className="food-hero-sub">
         {nm.budgetLeft === null ? '' : `這餐預算剩 ${money(nm.budgetLeft)}`}
         {nm.kcalLeft !== null && `・熱量還剩 ${Math.max(0, Math.round(nm.kcalLeft))} 大卡`}
       </p>
+      <div className="food-hero-main">
+        <Link to="/food?wheel=1" className="btn primary">轉盤決定</Link>
+        <Link to="/food?tab=near" className="btn primary teal">附近餐廳</Link>
+      </div>
       {msg ? (
         <p className="hint ok">{msg}</p>
       ) : (
@@ -377,6 +378,24 @@ function NextMealCard() {
           }}
         />
       )}
+      <div className="food-hero-snaps">
+        <Link to="/food?tab=snap" className="food-hero-cam" aria-label="拍照打卡">
+          <strong>{streak}</strong>
+          <span>天連續打卡</span>
+        </Link>
+        {todaySnaps.slice(0, 3).map((it) => (
+          <Link key={it.id} to="/food?tab=snap" className="food-hero-snap">
+            <img src={it.thumb} alt={`${LOG_SLOTS[it.slot] || ''} ${it.note || ''}`} />
+          </Link>
+        ))}
+        {!todaySnaps.length && <Link to="/food?tab=snap" className="food-hero-snap empty">今天還沒拍</Link>}
+      </div>
+      <div className="food-shortcuts">
+        <Link to="/food?tab=snap" className="btn small">拍照打卡</Link>
+        <Link to="/food?tab=drink" className="btn small">要不要喝飲料</Link>
+        <Link to="/food?tab=near&kind=drink" className="btn small">附近飲料店</Link>
+        <Link to="/food?tab=snap" className="btn small">一週吃什麼 IG 圖</Link>
+      </div>
     </section>
   );
 }
