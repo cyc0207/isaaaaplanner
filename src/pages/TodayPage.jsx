@@ -9,6 +9,8 @@ import {
 import { todayMealLeft, weekDrinkLeft, livingSummary } from '../lib/budget.js';
 import { ENGLISH_HABIT } from '../lib/seed.js';
 import { TarotCard } from './TarotPage.jsx';
+import { QuoteCard, OracleHomeCard } from './OraclePage.jsx';
+import { eatLine } from '../lib/oracle.js';
 import BalancePie from '../components/BalancePie.jsx';
 import { Ring, TaskRow, money, deadlineLabel } from '../components/ui.jsx';
 import { AddTaskForm, TaskEditor, useTaskActions, payFixed } from '../components/editors.jsx';
@@ -65,6 +67,8 @@ export default function TodayPage() {
           {shortLabel(day)}
         </span>
       </header>
+
+      <QuoteCard />
 
       <Reminders day={day} />
 
@@ -129,6 +133,8 @@ export default function TodayPage() {
       </section>
 
       <TarotCard day={day} />
+
+      <OracleHomeCard day={day} />
 
       <section className="section">
         <h2>今天的三件事</h2>
@@ -343,8 +349,9 @@ function Reminders({ day }) {
 function FoodHero() {
   const nm = useNextMeal();
   const eat = useEatMeal();
-  const { uid } = useData();
+  const { uid, oracleLog } = useData();
   const t = today();
+  const pick = eatLine(oracleLog[t]?.eat);
   const log = useFoodLog(uid, addDays(t, -30)) || [];
   const [msg, setMsg] = useState('');
   const todaySnaps = log.filter((i) => i.date === t).sort((a, b) => (a.createdAtMs || 0) - (b.createdAtMs || 0));
@@ -362,6 +369,9 @@ function FoodHero() {
         {nm.budgetLeft === null ? '' : `這餐預算剩 ${money(nm.budgetLeft)}`}
         {nm.kcalLeft !== null && `・熱量還剩 ${Math.max(0, Math.round(nm.kcalLeft))} 大卡`}
       </p>
+      <Link to="/oracle" className="food-hero-oracle">
+        {pick ? `今天的雷諾曼 ${pick}` : '抽兩張雷諾曼，看今天吃什麼方向'}
+      </Link>
       <div className="food-hero-main">
         <Link to="/food?wheel=1" className="btn primary">轉盤決定</Link>
         <Link to="/food?tab=near" className="btn primary teal">附近餐廳</Link>
