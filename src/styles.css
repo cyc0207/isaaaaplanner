@@ -811,3 +811,9 @@ details.section > summary { cursor: pointer; padding: 0.3rem 0; }
 .study-colors .c-teal { background: var(--teal); }
 .study-colors .c-mustard { background: var(--mustard); }
 .study-colors .c-olive { background: #7a9a3a; }
+
+/* App 內瀏覽器（Threads、IG…）不能 Google 登入 */
+.inapp-box { max-width: 340px; margin: 1rem auto 0; padding: 1rem; text-align: left; background: var(--warn-soft); border: 2.5px solid var(--line); border-radius: var(--radius); box-shadow: 4px 4px 0 var(--shadow); }
+.inapp-box p { margin: 0.4rem 0; }
+.inapp-box ol { margin: 0.3rem 0 0.4rem; padding-left: 1.3rem; font-weight: 700; }
+.inapp-box .btn { text-decoration: none; justify-content: center; }

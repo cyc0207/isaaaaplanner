@@ -17,6 +17,7 @@ import InboxPage from './pages/InboxPage.jsx';
 import EnglishPage from './pages/EnglishPage.jsx';
 import StudyPage from './pages/StudyPage.jsx';
 import { Icon } from './components/ui.jsx';
+import { inAppBrowser, isAndroid, chromeIntent } from './lib/inapp.js';
 
 export default function App() {
   const [user, setUser] = useState(undefined);
@@ -38,6 +39,9 @@ export default function App() {
 }
 
 function Login({ error, setError }) {
+  const app = inAppBrowser();
+  const [copied, setCopied] = useState(false);
+  const url = window.location.origin + '/';
   const login = async () => {
     setError('');
     try {
@@ -50,14 +54,38 @@ function Login({ error, setError }) {
       }
     }
   };
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+    } catch {
+      window.prompt('複製這個網址，貼到 Safari 或 Chrome：', url);
+    }
+  };
   return (
     <div className="login">
       <h1>今天要做什麼？</h1>
       <p className="muted">打開就知道今天的三件事。</p>
-      <button className="btn primary big" onClick={login}>
-        用 Google 登入
-      </button>
-      {error && <p className="error">{error}</p>}
+      {app ? (
+        <div className="inapp-box">
+          <strong>現在是在 {app} 裡面打開的</strong>
+          <p>Google 不讓 App 裡的瀏覽器登入。請改用 {isAndroid() ? 'Chrome' : 'Safari'} 打開：</p>
+          {isAndroid() ? (
+            <a className="btn primary big" href={chromeIntent(url)}>用 Chrome 打開</a>
+          ) : (
+            <ol>
+              <li>按右下角或右上角的「⋯」</li>
+              <li>選「用瀏覽器開啟」或「在 Safari 中開啟」</li>
+            </ol>
+          )}
+          <button className="btn big" onClick={copy}>{copied ? '已複製，貼到瀏覽器網址列' : '複製網址'}</button>
+        </div>
+      ) : (
+        <button className="btn primary big" onClick={login}>
+          用 Google 登入
+        </button>
+      )}
+      {error && <p className="error">{/missing initial state/i.test(error) ? '登入失敗：這個瀏覽器不能完成 Google 登入，請用 Safari 或 Chrome 打開網址再試一次。' : error}</p>}
     </div>
   );
 }
