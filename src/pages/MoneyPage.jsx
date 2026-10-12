@@ -9,6 +9,7 @@ import {
 import { fixedPaidId } from '../lib/plan.js';
 import { money, Bar, Sheet, Icon } from '../components/ui.jsx';
 import { payFixed } from '../components/editors.jsx';
+import InvestDashboard from '../components/InvestDashboard.jsx';
 import { BudgetSuggestions, BudgetChangeLog } from '../components/Suggestions.jsx';
 import { SUGARS, SIZES, nextMeal, SLOTS, mealExpense } from '../lib/meals.js';
 
@@ -17,6 +18,7 @@ const TABS = [
   ['overview', '總覽'],
   ['accounts', '帳戶'],
   ['fixed', '固定支出'],
+  ['invest', '投資'],
   ['alloc', '薪資分配'],
 ];
 
@@ -38,7 +40,8 @@ export default function MoneyPage() {
       </header>
       <div className="tabs" role="tablist">
         {TABS.map(([k, l]) => (
-          <button key={k} role="tab" aria-selected={tab === k} className={tab === k ? 'on' : ''} onClick={() => setParams(k === 'add' ? {} : { tab: k })}>
+          <button key={k} role="tab" aria-selected={tab === k} className={tab === k ? 'on' : ''}
+            ref={tab === k ? (el) => el?.scrollIntoView({ block: 'nearest', inline: 'nearest' }) : null} onClick={() => setParams(k === 'add' ? {} : { tab: k })}>
             {l}
           </button>
         ))}
@@ -47,6 +50,7 @@ export default function MoneyPage() {
       {tab === 'overview' && <Overview />}
       {tab === 'accounts' && <Accounts />}
       {tab === 'fixed' && <Fixed />}
+      {tab === 'invest' && <InvestDashboard />}
       {tab === 'alloc' && <Allocation />}
     </div>
   );
@@ -452,7 +456,7 @@ export function MonthSummary({ mKey }) {
         )}
         <div className="card stat">
           <div className="big">{money(totals.invested)}</div>
-          <div className="label">定期定額已轉</div>
+          <div className="label">本月投資（定期定額）</div>
         </div>
         <div className="card stat">
           <div className="big">{money(totals.income)}</div>

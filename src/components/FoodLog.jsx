@@ -3,8 +3,10 @@ import { collection, doc, getDoc, onSnapshot, query, where } from 'firebase/fire
 import { db } from '../firebase.js';
 import { useData } from '../data.jsx';
 import { today, addDays, shortLabel } from '../lib/date.js';
-import { SLOTS } from '../lib/meals.js';
-import { LOG_SLOTS, DAYS, slotNow, photoStreak, WHEEL_SOURCES, lastSpin, forgetSpin, wheelLabel, ateAt, differsFromPick, RATINGS, RATING_TAG, reviewKey, toReview, reviewUpdate } from '../lib/foodlog.js';
+import { Link } from 'react-router-dom';
+import { SUGARS, SIZES } from '../lib/meals.js';
+import { DEFAULT_EXPENSE_CATEGORIES, DRINK } from '../lib/budget.js';
+import { LOG_SLOTS, DRINK_SLOT, slotCategory, weekSlotCounts, DAYS, slotNow, photoStreak, WHEEL_SOURCES, lastSpin, forgetSpin, wheelLabel, ateAt, differsFromPick, RATINGS, RATING_TAG, reviewKey, toReview, reviewUpdate } from '../lib/foodlog.js';
 import { compressPhoto } from '../lib/photo.js';
 import { money, Sheet } from './ui.jsx';
 import WeekRecap from './WeekRecap.jsx';
@@ -20,8 +22,9 @@ export function useFoodLog(uid, from) {
 }
 
 export default function FoodLog() {
-  const { uid } = useData();
+  const { uid, budget } = useData();
   const t = today();
+  const [only, setOnly] = useState(null);
   const items = useFoodLog(uid, addDays(t, -(DAYS - 1)));
   const [draft, setDraft] = useState(null);
   const [viewing, setViewing] = useState(null);
@@ -36,14 +39,17 @@ export default function FoodLog() {
     try {
       const photo = await compressPhoto(file);
       const spin = lastSpin();
-      setDraft({ ...photo, slot: slotNow(), note: spin?.name || '', amount: '', fromWheel: !!spin, wheelSource: spin?.source || null, wheelPick: spin?.name || '', placeId: spin?.placeId || null });
+      setDraft({ ...photo, slot: slotNow(new Date(), spin), sugar: '', size: '中', note: spin?.name || '', amount: '', fromWheel: !!spin, wheelSource: spin?.source || null, wheelPick: spin?.name || '', placeId: spin?.placeId || null });
     } catch {
       setErr('這張照片讀不出來，換一張試試。');
     }
   };
 
   if (!items) return <p className="muted">載入中…</p>;
-  const sorted = items.slice().sort((a, b) => b.date.localeCompare(a.date) || (b.createdAtMs || 0) - (a.createdAtMs || 0));
+  const counts = weekSlotCounts(items, t);
+  const drinkCat = (budget?.categories || []).find((c) => c.name === DRINK);
+  const drinkLimit = Number(drinkCat?.perWeekCount) || 0;
+  const sorted = items.filter((i) => !only || i.slot === only).sort((a, b) => b.date.localeCompare(a.date) || (b.createdAtMs || 0) - (a.createdAtMs || 0));
   const byDay = [];
   for (const it of sorted) {
     const g = byDay[byDay.length - 1];
@@ -75,9 +81,32 @@ export default function FoodLog() {
           一週吃什麼：做成 IG 圖
         </button>
       )}
+      {items.length > 0 && (
+        <div className="snap-filter">
+          <span className="small strong">這週打卡</span>
+          <div className="snap-stats">
+            {Object.entries(LOG_SLOTS).map(([k, l]) => {
+              const n = counts[k];
+              const isDrink = k === DRINK_SLOT;
+              if (!n && !isDrink) return null;
+              const over = isDrink && drinkLimit > 0 && n >= drinkLimit;
+              return (
+                <button key={k} type="button" className={`snap-stat ${isDrink ? 'drink' : ''} ${over ? 'over' : ''}`}
+                  aria-pressed={only === k} onClick={() => setOnly(only === k ? null : k)}>
+                  {l} {n}{isDrink && drinkLimit ? `／${drinkLimit}` : ''} {isDrink ? '杯' : '次'}{only === k ? '（只看這類）' : ''}
+                </button>
+              );
+            })}
+          </div>
+          {drinkLimit > 0 && counts[DRINK_SLOT] >= drinkLimit && (
+            <p className="hint warn">這週飲料已經 {counts[DRINK_SLOT]} 杯，到了設定的每週 {drinkLimit} 杯。<Link to="/food?tab=drink">轉轉看今天要不要喝</Link></p>
+          )}
+        </div>
+      )}
       <ReviewQueue items={toReview(items)} />
 
-      {!byDay.length && <p className="muted">還沒有打卡。吃之前拍一張，之後回頭看吃了什麼。</p>}
+      {only && !byDay.length && <p className="muted">最近 {DAYS} 天沒有{LOG_SLOTS[only]}的打卡。</p>}
+      {!only && !byDay.length && <p className="muted">還沒有打卡。吃之前拍一張，之後回頭看吃了什麼。</p>}
       {byDay.map((g) => (
         <div key={g.date} className="snap-day">
           <h3>{g.date === t ? '今天' : shortLabel(g.date)}</h3>
@@ -103,8 +132,10 @@ export default function FoodLog() {
 }
 
 function SnapEditor({ draft, setDraft, onClose }) {
-  const { uid, api, defaultAccount, confirmClosed } = useData();
+  const { uid, api, defaultAccount, confirmClosed, budget } = useData();
   const [saving, setSaving] = useState(false);
+  const isDrink = draft.slot === DRINK_SLOT;
+  const category = slotCategory(draft.slot, budget.expenseCategories || DEFAULT_EXPENSE_CATEGORIES);
   const save = async (e) => {
     e.preventDefault();
     const day = today();
@@ -118,8 +149,9 @@ function SnapEditor({ draft, setDraft, onClose }) {
       ops.push({
         set: `expenses/${expenseId}`, merge: false,
         data: {
-          date: day, amount: Math.round(amount), type: 'expense', category: SLOTS[draft.slot] || '其他', account: defaultAccount,
+          date: day, amount: Math.round(amount), type: 'expense', category, account: defaultAccount,
           toAccount: null, fixedItemId: null, note: draft.note.trim() || '拍照打卡', createdAtMs: Date.now(),
+          ...(isDrink && category === DRINK ? { drink: { size: draft.size, sugar: draft.sugar || '未選' } } : {}),
         },
       });
     }
@@ -131,6 +163,7 @@ function SnapEditor({ draft, setDraft, onClose }) {
         date: day, slot: draft.slot, note: draft.note.trim(), thumb: draft.thumb, expenseId, createdAtMs: Date.now(),
         fromWheel: draft.fromWheel, wheelSource: draft.fromWheel ? draft.wheelSource : null, wheelPick: draft.fromWheel ? draft.wheelPick : '',
         placeId: draft.fromWheel ? draft.placeId || null : null,
+        ...(isDrink ? { sugar: draft.sugar || null, size: draft.size } : {}),
       },
     });
     api.batch(ops);
@@ -141,13 +174,27 @@ function SnapEditor({ draft, setDraft, onClose }) {
     <Sheet title="食物打卡" onClose={onClose}>
       <form className="form" onSubmit={save}>
         <img className="snap-preview" src={draft.full} alt="剛拍的照片" />
-        <div className="seg four">
-          {Object.entries(LOG_SLOTS).map(([k, l]) => (
-            <button type="button" key={k} className={draft.slot === k ? 'on' : ''} onClick={() => setDraft({ ...draft, slot: k })}>
-              {l}
-            </button>
-          ))}
-        </div>
+        <span className="small strong">吃的是哪一類？</span>
+        <SlotPicker value={draft.slot} onChange={(slot) => setDraft({ ...draft, slot })} />
+        {isDrink && (
+          <div className="snap-how">
+            <span className="small strong">甜度</span>
+            <div className="seg four">
+              {SUGARS.map((x) => (
+                <button type="button" key={x} className={draft.sugar === x ? 'on' : ''} onClick={() => setDraft({ ...draft, sugar: x })}>
+                  {x}
+                </button>
+              ))}
+            </div>
+            <div className="seg two">
+              {SIZES.map((x) => (
+                <button type="button" key={x} className={draft.size === x ? 'on' : ''} onClick={() => setDraft({ ...draft, size: x })}>
+                  {x}杯
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
         <div className="snap-how">
           <span className="small strong">這餐怎麼決定的？</span>
           <div className="seg two">
@@ -183,7 +230,7 @@ function SnapEditor({ draft, setDraft, onClose }) {
           <input inputMode="numeric" value={draft.amount} onChange={(e) => setDraft({ ...draft, amount: e.target.value.replace(/[^\d]/g, '') })} placeholder="不填就只打卡" />
         </label>
         <button className="btn primary big" type="submit" disabled={saving}>
-          打卡{Number(draft.amount) > 0 ? `，記 ${LOG_SLOTS[draft.slot]} ${money(Number(draft.amount))}` : ''}
+          打卡{Number(draft.amount) > 0 ? `，記 ${category} ${money(Number(draft.amount))}` : ''}
         </button>
       </form>
     </Sheet>
@@ -208,6 +255,8 @@ function SnapViewer({ item, onClose }) {
     <Sheet title={`${shortLabel(item.date)} ${LOG_SLOTS[item.slot] || ''}`} onClose={onClose}>
       <img className="snap-preview" src={full || item.thumb} alt={item.note || '食物照片'} />
       {item.note && <p className="strong">{item.note}</p>}
+      <SlotPicker value={item.slot} onChange={(slot) => { api.set(`foodLog/${item.id}`, { slot }); onClose(); }} />
+      {item.slot === DRINK_SLOT && item.sugar && <p className="muted small">{item.size || ''}杯・{item.sugar}</p>}
       <p className="muted small">
         {item.fromWheel ? `轉盤打卡（${wheelLabel(item)}）` : '自己選的'}
         <button className="link" onClick={() => { api.set(`foodLog/${item.id}`, { fromWheel: !item.fromWheel }); onClose(); }}>
@@ -274,6 +323,18 @@ function ReviewQueue({ items }) {
           </li>
         ))}
       </ul>
+    </div>
+  );
+}
+
+function SlotPicker({ value, onChange }) {
+  return (
+    <div className="seg slots" role="group" aria-label="類別">
+      {Object.entries(LOG_SLOTS).map(([k, l]) => (
+        <button type="button" key={k} className={value === k ? 'on' : ''} aria-pressed={value === k} onClick={() => onChange(k)}>
+          {l}
+        </button>
+      ))}
     </div>
   );
 }

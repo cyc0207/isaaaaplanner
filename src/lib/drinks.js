@@ -2,16 +2,16 @@ import { weekDays } from './date.js';
 import { DRINK, isLivingExpense, weekDrinkLeft } from './budget.js';
 
 // 今天要不要喝飲料：轉盤格子比例看本週飲料預算、杯數和全糖杯數
-export function drinkOdds({ budget, expenses, day }) {
+// logs：飲料打卡（foodLog），沒順便記帳的那幾杯也算進杯數
+export function drinkOdds({ budget, expenses, day, logs = [] }) {
   const cat = (budget?.categories || []).find((c) => c.name === DRINK);
   const perItem = Number(cat?.perItem) || 0;
   const perWeek = Number(cat?.perWeekCount) || 0;
   const { left, weekly } = weekDrinkLeft(budget, expenses, day);
   const days = weekDays(day);
   const week = expenses.filter((e) => isLivingExpense(e) && e.category === DRINK && e.date >= days[0] && e.date <= days[6]);
-  const cups = week.length;
-  const fullSugar = week.filter((e) => e.drink?.sugar === '全糖').length;
-  const today = week.filter((e) => e.date === day).length;
+  const snaps = logs.filter((l) => l.slot === 'drink' && l.date >= days[0] && l.date <= days[6]);
+  const { cups, fullSugar, today } = mergeCups(week, snaps, day);
 
   let drink = 2;
   let skip = 1;
@@ -37,6 +37,26 @@ export function drinkOdds({ budget, expenses, day }) {
   }
   if (!reasons.length) reasons.push('還沒設定飲料預算，用預設比例');
   return { drink, skip, reasons, left, perItem, cups, fullSugar, today };
+}
+
+// 記帳的飲料和飲料打卡可能是同一杯：每天取兩邊比較多的那個，不重複算
+export function mergeCups(expenses, snaps, day) {
+  const per = {};
+  const bump = (d, k, full) => {
+    per[d] ||= { e: 0, s: 0, ef: 0, sf: 0 };
+    per[d][k] += 1;
+    if (full) per[d][`${k}f`] += 1;
+  };
+  for (const e of expenses) bump(e.date, 'e', e.drink?.sugar === '全糖');
+  for (const l of snaps) bump(l.date, 's', l.sugar === '全糖');
+  let cups = 0;
+  let fullSugar = 0;
+  for (const v of Object.values(per)) {
+    cups += Math.max(v.e, v.s);
+    fullSugar += Math.max(v.ef, v.sf);
+  }
+  const t = per[day];
+  return { cups, fullSugar, today: t ? Math.max(t.e, t.s) : 0 };
 }
 
 // 轉盤的格子：喝和不喝交錯排

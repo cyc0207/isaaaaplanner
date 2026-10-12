@@ -1,11 +1,31 @@
-import { addDays } from './date.js';
+import { addDays, weekDays } from './date.js';
 import { SLOTS, nextMeal } from './meals.js';
 
-export const LOG_SLOTS = { ...SLOTS, snack: '點心' };
+// 打卡的類別：三餐沿用記帳分類名稱，再加點心、飲料、宵夜
+export const LOG_SLOTS = { ...SLOTS, snack: '點心', drink: '飲料', late: '宵夜' };
+export const DRINK_SLOT = 'drink';
+
+// 打卡順便記帳時記到哪個分類：記帳有這個分類就用，沒有就記「其他」
+export function slotCategory(slot, categories) {
+  const name = LOG_SLOTS[slot];
+  return name && categories.includes(name) ? name : '其他';
+}
+
+// 這週（週一到週日）每一類打卡幾次
+export function weekSlotCounts(items, day) {
+  const days = weekDays(day);
+  const out = Object.fromEntries(Object.keys(LOG_SLOTS).map((k) => [k, 0]));
+  for (const it of items) {
+    if (it.date < days[0] || it.date > days[6]) continue;
+    if (it.slot in out) out[it.slot] += 1;
+  }
+  return out;
+}
 export const DAYS = 30;
 
 // 現在這個時間拍的，多半是哪一餐
-export function slotNow(now = new Date()) {
+export function slotNow(now = new Date(), spin = null) {
+  if (spin?.source === 'drink') return DRINK_SLOT;
   const nm = nextMeal(now);
   return nm.tomorrow ? 'dinner' : nm.slot;
 }

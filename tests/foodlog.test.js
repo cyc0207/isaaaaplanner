@@ -86,3 +86,22 @@ describe('實際吃的店', () => {
     expect(differsFromPick('', '無虞蒔堂')).toBe(false);
   });
 });
+
+describe('打卡類別', async () => {
+  const { slotCategory, weekSlotCounts, LOG_SLOTS } = await import('../src/lib/foodlog.js');
+  it('有早餐、午餐、晚餐、點心、飲料、宵夜', () => {
+    expect(Object.values(LOG_SLOTS)).toEqual(['早餐', '午餐', '晚餐', '點心', '飲料', '宵夜']);
+  });
+  it('剛轉完飲料店就預設飲料', () => {
+    expect(slotNow(new Date(2026, 9, 12, 12, 30), { source: 'drink' })).toBe('drink');
+  });
+  it('記帳分類沒有就記其他', () => {
+    expect(slotCategory('drink', ['飲料', '點心'])).toBe('飲料');
+    expect(slotCategory('late', ['飲料', '點心'])).toBe('其他');
+  });
+  it('這週每一類幾次', () => {
+    const c = weekSlotCounts([{ date: '2026-10-12', slot: 'drink' }, { date: '2026-10-13', slot: 'drink' }, { date: '2026-10-11', slot: 'drink' }, { date: '2026-10-13', slot: 'lunch' }], '2026-10-14');
+    expect(c.drink).toBe(2);
+    expect(c.lunch).toBe(1);
+  });
+});

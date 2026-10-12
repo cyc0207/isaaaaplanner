@@ -1,4 +1,5 @@
 import { daysInMonth, monthKey, weekDays, diffDays, monthRange } from './date.js';
+import { isInvestExpense } from './invest.js';
 
 export const FLEX = '彈性';
 export const MEALS = ['早餐', '午餐', '晚餐'];
@@ -71,8 +72,8 @@ export function categoryBudgets(budget, fixedItems, mKey) {
 
 const inRange = (d, from, to) => d >= from && d <= to;
 
-// 生活費的支出：一般支出，不含固定支出產生的那幾筆
-export const isLivingExpense = (e) => e.type === 'expense' && !e.fixedItemId;
+// 生活費的支出：一般支出，不含固定支出產生的那幾筆，也不含定期定額（那是投資）
+export const isLivingExpense = (e) => e.type === 'expense' && !e.fixedItemId && !isInvestExpense(e);
 
 export function spentByBucket(expenses, budgetCats, from, to) {
   const names = new Set(budgetCats.map((c) => c.name));
@@ -140,7 +141,7 @@ export function monthTotals(expenses, mKey, investmentAccountId) {
   const inMonth = expenses.filter((e) => inRange(e.date, from, to));
   const income = sumWhere(inMonth, (e) => e.type === 'income');
   const expense = sumWhere(inMonth, (e) => e.type === 'expense');
-  const invested = sumWhere(inMonth, (e) => e.type === 'transfer' && investmentAccountId && e.toAccount === investmentAccountId);
+  const invested = sumWhere(inMonth, (e) => (e.type === 'transfer' && investmentAccountId && e.toAccount === investmentAccountId) || isInvestExpense(e));
   return { income, expense, net: income - expense, invested };
 }
 
