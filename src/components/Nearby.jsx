@@ -198,7 +198,7 @@ export default function Nearby() {
           {origin ? (
             <>
               <span>📍 {origin.label}{origin.address ? `（${origin.address}）` : ''}</span>
-              {origin.food && <FavButton p={origin} act={act} reviews={placeReviews} />}
+              {!origin.road && origin.food !== false && <FavButton p={origin} act={act} reviews={placeReviews} />}
               <button className="link" onClick={useMine}>改回我的位置</button>
             </>
           ) : (
@@ -221,7 +221,7 @@ export default function Nearby() {
                   <strong>{o.label}</strong>
                   <span className="muted small">{o.address}</span>
                 </button>
-                {o.food && <FavButton p={{ ...o, address: o.address }} act={act} reviews={placeReviews} />}
+                {!o.road && o.food !== false && <FavButton p={{ ...o, address: o.address }} act={act} reviews={placeReviews} />}
               </li>
             ))}
           </ul>
@@ -446,6 +446,7 @@ function PlaceRow({ p, act }) {
 
 // 查出來的那家店（不是路）也能直接收藏
 function FavButton({ p, act, reviews }) {
+  p = { ...p, name: p.name || p.label };
   const on = !!reviewOf(reviews, p)?.fav;
   return (
     <button className={`btn small fav-btn ${on ? 'on-fav' : ''}`} aria-pressed={on} onClick={() => act.toggleFav(p)}>

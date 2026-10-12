@@ -267,7 +267,7 @@ export async function searchAlong({ key, road, latitude, longitude, kind = 'food
 // 輸入街道、地址或地標，找出它的位置（用同一把 Places 金鑰的 Text Search，不用另外開 Geocoding）
 export async function findPlace({ key, text }) {
   const q = text.trim();
-  const ck = `planner.placefind:${q}`;
+  const ck = `planner.placefind2:${q}`;
   const cached = readCache(ck);
   if (cached) return cached;
   const res = await fetch(TEXT_URL, {
