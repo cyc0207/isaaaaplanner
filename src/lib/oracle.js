@@ -139,10 +139,15 @@ export function topicReading(topic, cards) {
 }
 
 // 今天的行動：做得到的一件小事，跟牌義分開
-export function topicAction(topic, cards) {
+export function topicAction(topic, cards, color = null) {
   const cs = cards.map(oracleCard);
   if (cs.some((c) => !c)) return '';
-  if (topic === 'wear') return `今天以${cs[0].wear[0]}為主，主角是「${cs[1].wear[1]}」，細節：${cs[2].wear[2]}。穿好拍一張 OOTD`;
+  if (topic === 'wear') {
+    const c = color && colorById(color.colorId);
+    return c
+      ? `今天的顏色是${c.name}，${color.spot}。主角是「${cs[1].wear[1]}」，細節：${cs[2].wear[2]}。穿好拍一張 OOTD`
+      : `今天以${cs[0].wear[0]}為主，主角是「${cs[1].wear[1]}」，細節：${cs[2].wear[2]}。穿好拍一張 OOTD`;
+  }
   if (topic === 'eat') return `照「${cs[0].eat}」的方向挑一餐${cs[1].eat !== cs[0].eat ? `，也可以參考「${cs[1].eat}」` : ''}`;
   return cs[cs.length - 1].act;
 }
@@ -227,4 +232,49 @@ export function quoteOfDay({ day, mine = [], offset = 0, mineOnly = false }) {
   const pool = mineOnly && own.length ? own : [...own, ...BUILTIN_QUOTES.map((text) => ({ text, mine: false }))];
   if (!pool.length) return null;
   return pool[(hashDay(day) + offset) % pool.length];
+}
+
+// ── 穿搭：今天的顏色元素 ──
+// [名字, 色碼, 感覺]。抽一個顏色，再抽一個放在哪裡
+export const COLORS = [
+  ['磚紅', '#c4502f', '有精神、敢表現'],
+  ['芥末黃', '#e0a526', '開朗、好親近'],
+  ['湖水綠', '#2d6a6a', '冷靜、有主見'],
+  ['奶油白', '#f2e8d2', '溫柔、乾淨'],
+  ['海軍藍', '#1f3a5f', '可靠、專心'],
+  ['墨黑', '#2b2118', '俐落、有距離感'],
+  ['炭灰', '#555555', '低調、穩定'],
+  ['燕麥米', '#d8c8a8', '放鬆、自然'],
+  ['焦糖棕', '#9a5a2b', '溫暖、踏實'],
+  ['橄欖綠', '#6b6b2f', '自在、有個性'],
+  ['薄荷綠', '#9fd3bd', '清爽、重新開始'],
+  ['天空藍', '#8ab8e0', '輕鬆、好溝通'],
+  ['薰衣草紫', '#b7a3d6', '浪漫、有想像力'],
+  ['酒紅', '#7a1f2b', '成熟、有自信'],
+  ['櫻花粉', '#efb7c0', '甜、柔軟'],
+  ['珊瑚橘', '#ef7f5f', '活潑、有熱情'],
+  ['檸檬黃', '#f2dc5d', '好心情、有點調皮'],
+  ['森林綠', '#2f5a3a', '沉穩、有耐心'],
+  ['丹寧藍', '#4a6a8f', '隨性、好行動'],
+  ['巧克力', '#4e3122', '安心、有份量'],
+  ['霧灰藍', '#8496a6', '安靜、想清楚'],
+  ['杏桃', '#f2b58a', '親切、氣色好'],
+  ['純白', '#ffffff', '簡單、乾淨俐落'],
+  ['銀灰', '#b9b9b9', '冷靜、有點酷'],
+].map(([name, hex, feel], i) => ({ id: `c${i + 1}`, name, hex, feel }));
+
+export const COLOR_SPOTS = [
+  '用在上衣', '用在褲子或裙子', '用在外套', '用在鞋子', '用在包包', '用在耳環或髮飾', '用在襪子', '用在圍巾或領巾', '用在指甲或口紅', '全身同色系深淺搭',
+];
+
+export function drawColor(rnd = Math.random) {
+  const c = COLORS[Math.floor(rnd() * COLORS.length) % COLORS.length];
+  return { colorId: c.id, spot: COLOR_SPOTS[Math.floor(rnd() * COLOR_SPOTS.length) % COLOR_SPOTS.length] };
+}
+
+export const colorById = (id) => COLORS.find((c) => c.id === id) || null;
+
+export function colorLine(pick) {
+  const c = pick && colorById(pick.colorId);
+  return c ? `${c.name}・${pick.spot}` : '';
 }

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useData } from '../data.jsx';
 import { today, shortLabel } from '../lib/date.js';
-import { DECKS, TOPICS, TOPIC_KEYS, oracleCard, drawFrom, drawTopic, topicReading, topicAction, oraclePrompt, quoteOfDay, BUILTIN_QUOTES } from '../lib/oracle.js';
+import { DECKS, TOPICS, TOPIC_KEYS, oracleCard, drawFrom, drawTopic, topicReading, topicAction, oraclePrompt, quoteOfDay, BUILTIN_QUOTES, drawColor, colorById, colorLine } from '../lib/oracle.js';
 import { CopyButton } from './TarotPage.jsx';
 
 // 每日三抽存在 oracleLog/{日期}：{ wear: { cards, done }, eat: {...}, love: {...}, free: { deck, cards, q } }
@@ -14,6 +14,11 @@ function useOracle(day) {
     draw: (topic) => {
       if (entry[topic]?.cards?.length) return;
       api.set(`oracleLog/${day}`, { [topic]: { cards: drawTopic(topic), done: false, at: Date.now() } });
+    },
+    // 穿搭的顏色元素：一天抽一次，存在 oracleLog/{日期}.color
+    drawColor: () => {
+      if (entry.color?.colorId) return;
+      api.set(`oracleLog/${day}`, { color: { ...drawColor(), at: Date.now() } });
     },
     toggleDone: (topic) => api.set(`oracleLog/${day}`, { [topic]: { done: !entry[topic]?.done } }),
     setFree: (free) => api.set(`oracleLog/${day}`, { free }),
@@ -48,7 +53,29 @@ function OracleRow({ ids, positions, fresh }) {
   );
 }
 
-function TopicBlock({ topic, data, onDraw, onToggle, day }) {
+// 今天的顏色元素：抽一個顏色和放的位置
+function ColorPick({ pick, onDraw }) {
+  const c = pick && colorById(pick.colorId);
+  if (!c) {
+    return (
+      <button className="btn wide color-draw" onClick={onDraw}>
+        抽今天的顏色元素
+      </button>
+    );
+  }
+  return (
+    <div className="color-pick">
+      <span className="color-swatch" style={{ background: c.hex }} aria-hidden="true" />
+      <span className="grow">
+        <span className="oracle-sub">今天的顏色元素</span>
+        <strong className="color-name">{c.name}</strong>
+        <span className="muted small">{pick.spot}・{c.feel}</span>
+      </span>
+    </div>
+  );
+}
+
+function TopicBlock({ topic, data, onDraw, onToggle, day, color, onColor }) {
   const t = TOPICS[topic];
   const [fresh, setFresh] = useState(false);
   const cards = data?.cards || [];
@@ -58,6 +85,7 @@ function TopicBlock({ topic, data, onDraw, onToggle, day }) {
         <h3>{t.name}</h3>
         <span className="muted small">{t.how}</span>
       </div>
+      {topic === 'wear' && <ColorPick pick={color} onDraw={onColor} />}
       {!cards.length ? (
         <button className="btn primary wide" onClick={() => { setFresh(true); onDraw(); }}>
           抽{t.positions.length}張
@@ -83,7 +111,7 @@ function TopicBlock({ topic, data, onDraw, onToggle, day }) {
                 <input type="checkbox" checked={!!data.done} onChange={onToggle} aria-label="做到了" />
                 <span className="box" />
               </label>
-              <span className="ta-text">{topicAction(topic, cards)}</span>
+              <span className="ta-text">{topicAction(topic, cards, topic === 'wear' ? color : null)}</span>
             </li>
           </ul>
           <div className="row gap wrap">
@@ -96,7 +124,7 @@ function TopicBlock({ topic, data, onDraw, onToggle, day }) {
             )}
             <CopyButton
               className="btn small"
-              text={oraclePrompt({ day, deck: t.deck, cards, positions: t.positions, question: t.name })}
+              text={oraclePrompt({ day, deck: t.deck, cards, positions: t.positions, question: topic === 'wear' && color?.colorId ? `${t.name}（今天的顏色元素：${colorLine(color)}）` : t.name })}
             />
           </div>
         </>
@@ -266,6 +294,12 @@ export function OracleHomeCard({ day }) {
               ) : (
                 <span className="muted small">還沒抽（{TOPICS[k].how}）</span>
               )}
+              {k === 'wear' && entry.color?.colorId && (
+                <span className="color-chip">
+                  <span className="color-swatch small" style={{ background: colorById(entry.color.colorId)?.hex }} aria-hidden="true" />
+                  {colorLine(entry.color)}
+                </span>
+              )}
             </span>
           );
         })}
@@ -276,7 +310,7 @@ export function OracleHomeCard({ day }) {
 
 export default function OraclePage() {
   const day = today();
-  const { entry, draw, toggleDone, setFree } = useOracle(day);
+  const { entry, draw, toggleDone, setFree, drawColor: drawColorPick } = useOracle(day);
   useEffect(() => {
     const id = window.location.hash.slice(1);
     if (id) setTimeout(() => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' }), 50);
@@ -296,7 +330,7 @@ export default function OraclePage() {
       <section className="section oracle-topics">
         <h2>今日三抽</h2>
         {TOPIC_KEYS.map((k) => (
-          <TopicBlock key={k} topic={k} day={day} data={entry[k]} onDraw={() => draw(k)} onToggle={() => toggleDone(k)} />
+          <TopicBlock key={k} topic={k} day={day} data={entry[k]} onDraw={() => draw(k)} onToggle={() => toggleDone(k)} color={entry.color} onColor={drawColorPick} />
         ))}
       </section>
 
