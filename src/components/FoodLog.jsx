@@ -6,7 +6,11 @@ import { today, addDays, shortLabel } from '../lib/date.js';
 import { Link } from 'react-router-dom';
 import { SUGARS, SIZES } from '../lib/meals.js';
 import { DEFAULT_EXPENSE_CATEGORIES, DRINK } from '../lib/budget.js';
-import { LOG_SLOTS, DRINK_SLOT, slotCategory, weekSlotCounts, DAYS, slotNow, photoStreak, WHEEL_SOURCES, lastSpin, forgetSpin, wheelLabel, ateAt, differsFromPick, RATINGS, RATING_TAG, reviewKey, toReview, reviewUpdate } from '../lib/foodlog.js';
+import {
+  LOG_SLOTS, DRINK_SLOT, slotCategory, weekSlotCounts, DAYS, slotNow, photoStreak, WHEEL_SOURCES, lastSpin, forgetSpin, wheelLabel, ateAt, differsFromPick,
+  RATINGS, RATING_TAG, reviewKey, toReview, reviewUpdate, slotsOf, hasSlot, slotLabel, slotFields, toggleSlot, todayChoice, forgetChoice, startHow, HOWS, howOf,
+  nameFromMapsUrl, isUrl, favByUrl, favoritesOf,
+} from '../lib/foodlog.js';
 import { compressPhoto } from '../lib/photo.js';
 import { money, Sheet } from './ui.jsx';
 import WeekRecap from './WeekRecap.jsx';
@@ -30,6 +34,7 @@ export default function FoodLog() {
   const [viewing, setViewing] = useState(null);
   const [err, setErr] = useState('');
   const [recap, setRecap] = useState(false);
+  const [choice, setChoice] = useState(() => todayChoice());
 
   const pick = async (e) => {
     const file = e.target.files?.[0];
@@ -39,7 +44,9 @@ export default function FoodLog() {
     try {
       const photo = await compressPhoto(file);
       const spin = lastSpin();
-      setDraft({ ...photo, slot: slotNow(new Date(), spin), sugar: '', size: '中', note: spin?.name || '', amount: '', fromWheel: !!spin, wheelSource: spin?.source || null, wheelPick: spin?.name || '', placeId: spin?.placeId || null });
+      const pickNow = todayChoice();
+      const first = pickNow?.kind === 'drink' && !(spin && spin.at > pickNow.at) ? DRINK_SLOT : slotNow(new Date(), spin);
+      setDraft({ ...photo, slots: [first], sugar: '', size: '中', amount: '', ...startHow(spin, pickNow) });
     } catch {
       setErr('這張照片讀不出來，換一張試試。');
     }
@@ -49,7 +56,7 @@ export default function FoodLog() {
   const counts = weekSlotCounts(items, t);
   const drinkCat = (budget?.categories || []).find((c) => c.name === DRINK);
   const drinkLimit = Number(drinkCat?.perWeekCount) || 0;
-  const sorted = items.filter((i) => !only || i.slot === only).sort((a, b) => b.date.localeCompare(a.date) || (b.createdAtMs || 0) - (a.createdAtMs || 0));
+  const sorted = items.filter((i) => !only || hasSlot(i, only)).sort((a, b) => b.date.localeCompare(a.date) || (b.createdAtMs || 0) - (a.createdAtMs || 0));
   const byDay = [];
   for (const it of sorted) {
     const g = byDay[byDay.length - 1];
@@ -75,6 +82,12 @@ export default function FoodLog() {
           <input type="file" accept="image/*" onChange={pick} hidden />
         </label>
       </div>
+      {choice && (
+        <p className="hint choice-hint">
+          今天選了「{choice.name}」，拍照打卡會直接帶進去。
+          <button className="link" onClick={() => { forgetChoice(); setChoice(null); }}>不吃了</button>
+        </p>
+      )}
       {err && <p className="hint warn">{err}</p>}
       {items.length > 0 && (
         <button className="btn wide recap-btn" onClick={() => setRecap(true)}>
@@ -112,10 +125,11 @@ export default function FoodLog() {
           <h3>{g.date === t ? '今天' : shortLabel(g.date)}</h3>
           <div className="snap-grid">
             {g.items.map((it) => (
-              <button key={it.id} className="snap" onClick={() => setViewing(it)} aria-label={`${LOG_SLOTS[it.slot] || ''} ${it.note || ''}`}>
+              <button key={it.id} className="snap" onClick={() => setViewing(it)} aria-label={`${slotLabel(it)} ${it.note || ''}`}>
                 <img src={it.thumb} alt="" />
-                <span className="snap-tag">{LOG_SLOTS[it.slot] || '其他'}</span>
+                <span className="snap-tag">{slotLabel(it) || '其他'}</span>
                 {it.fromWheel && <span className="snap-wheel">轉盤</span>}
+                {howOf(it) === 'today' && <span className="snap-wheel">今天選</span>}
                 {it.rating && <span className={`snap-rate rate-tag ${it.rating}`}>{RATING_TAG[it.rating]}</span>}
               </button>
             ))}
@@ -124,18 +138,32 @@ export default function FoodLog() {
       ))}
       <p className="muted small">只顯示最近 {DAYS} 天。照片縮小後存在你自己的帳號裡。</p>
 
-      {draft && <SnapEditor draft={draft} setDraft={setDraft} onClose={() => setDraft(null)} />}
+      {draft && <SnapEditor draft={draft} setDraft={setDraft} onClose={() => setDraft(null)} onSaved={() => setChoice(null)} />}
       {recap && <WeekRecap items={items} onClose={() => setRecap(false)} />}
       {viewing && <SnapViewer item={viewing} onClose={() => setViewing(null)} />}
     </section>
   );
 }
 
-function SnapEditor({ draft, setDraft, onClose }) {
-  const { uid, api, defaultAccount, confirmClosed, budget } = useData();
+function SnapEditor({ draft, setDraft, onClose, onSaved }) {
+  const { uid, api, defaultAccount, confirmClosed, budget, placeReviews } = useData();
   const [saving, setSaving] = useState(false);
-  const isDrink = draft.slot === DRINK_SLOT;
-  const category = slotCategory(draft.slot, budget.expenseCategories || DEFAULT_EXPENSE_CATEGORIES);
+  const isDrink = draft.slots.includes(DRINK_SLOT);
+  // 記帳只記一筆：記在主要那類（晚餐＋飲料就記晚餐）
+  const { slot: main } = slotFields(draft.slots);
+  const category = slotCategory(main, budget.expenseCategories || DEFAULT_EXPENSE_CATEGORIES);
+  const favs = [...favoritesOf(placeReviews || {}, 'food'), ...favoritesOf(placeReviews || {}, 'drink')];
+  const setHow = (how) => {
+    if (how === 'wheel') setDraft({ ...draft, how, fromWheel: true });
+    else setDraft({ ...draft, how, fromWheel: false });
+  };
+  // 貼網址：收藏裡有的就用收藏的店名，Google 地圖網址就從網址抓店名
+  const pasteUrl = (url) => {
+    const fav = favByUrl(favs, url);
+    const name = fav?.name || nameFromMapsUrl(url);
+    const keepNote = draft.note.trim() && draft.note.trim() !== draft.wheelPick;
+    setDraft({ ...draft, url, wheelPick: name, placeId: fav?.id && fav.id !== fav.key ? fav.id : null, note: keepNote ? draft.note : name });
+  };
   const save = async (e) => {
     e.preventDefault();
     const day = today();
@@ -160,22 +188,27 @@ function SnapEditor({ draft, setDraft, onClose }) {
     ops.push({
       set: `foodLog/${id}`, merge: false,
       data: {
-        date: day, slot: draft.slot, note: draft.note.trim(), thumb: draft.thumb, expenseId, createdAtMs: Date.now(),
-        fromWheel: draft.fromWheel, wheelSource: draft.fromWheel ? draft.wheelSource : null, wheelPick: draft.fromWheel ? draft.wheelPick : '',
-        placeId: draft.fromWheel ? draft.placeId || null : null,
+        date: day, ...slotFields(draft.slots), note: draft.note.trim(), thumb: draft.thumb, expenseId, createdAtMs: Date.now(),
+        how: draft.how, fromWheel: draft.how === 'wheel', wheelSource: draft.how === 'wheel' ? draft.wheelSource : null,
+        // wheelPick：轉盤轉到的，或今天選的那家；評分用它找店
+        wheelPick: draft.how === 'self' ? '' : draft.wheelPick || '',
+        placeId: draft.how === 'self' ? null : draft.placeId || null,
+        url: draft.how === 'today' && isUrl(draft.url) ? draft.url.trim() : '',
         ...(isDrink ? { sugar: draft.sugar || null, size: draft.size } : {}),
       },
     });
     api.batch(ops);
     forgetSpin();
+    forgetChoice();
+    onSaved?.();
     onClose();
   };
   return (
     <Sheet title="食物打卡" onClose={onClose}>
       <form className="form" onSubmit={save}>
         <img className="snap-preview" src={draft.full} alt="剛拍的照片" />
-        <span className="small strong">吃的是哪一類？</span>
-        <SlotPicker value={draft.slot} onChange={(slot) => setDraft({ ...draft, slot })} />
+        <span className="small strong">吃的是哪一類？（可以多選，例：晚餐＋飲料）</span>
+        <SlotPicker value={draft.slots} onChange={(slots) => setDraft({ ...draft, slots })} />
         {isDrink && (
           <div className="snap-how">
             <span className="small strong">甜度</span>
@@ -197,16 +230,34 @@ function SnapEditor({ draft, setDraft, onClose }) {
         )}
         <div className="snap-how">
           <span className="small strong">這餐怎麼決定的？</span>
-          <div className="seg two">
-            <button type="button" className={draft.fromWheel ? 'on' : ''} onClick={() => setDraft({ ...draft, fromWheel: true })}>
-              轉盤轉的
-            </button>
-            <button type="button" className={!draft.fromWheel ? 'on' : ''} onClick={() => setDraft({ ...draft, fromWheel: false })}>
-              自己選的
-            </button>
+          <div className="seg three">
+            {HOWS.map(([k, l]) => (
+              <button type="button" key={k} className={draft.how === k ? 'on' : ''} aria-pressed={draft.how === k} onClick={() => setHow(k)}>
+                {l}
+              </button>
+            ))}
           </div>
-          {draft.fromWheel && draft.wheelSource && (
+          {draft.how === 'wheel' && draft.wheelSource && (
             <span className="muted small">剛剛{WHEEL_SOURCES[draft.wheelSource]}轉到「{draft.wheelPick}」</span>
+          )}
+          {draft.how === 'wheel' && !draft.wheelSource && <span className="muted small">最近 3 小時沒轉過，記成轉盤打卡。</span>}
+          {draft.how === 'today' && (
+            <label className="snap-url">
+              店家網址（可貼 Google 地圖連結）
+              <input type="url" inputMode="url" value={draft.url} onChange={(e) => pasteUrl(e.target.value)} placeholder="https://maps.app.goo.gl/…" />
+              {draft.wheelPick
+                ? <span className="muted small">今天選「{draft.wheelPick}」{favByUrl(favs, draft.url) ? '（收藏的店）' : ''}</span>
+                : draft.url && <span className="muted small">網址看不出店名，下面寫一下吃哪家。</span>}
+              {!draft.url && favs.length > 0 && (
+                <span className="choice-favs">
+                  {favs.slice(0, 8).map((f) => (
+                    <button type="button" key={f.key} className="btn small" onClick={() => setDraft({ ...draft, url: f.url || '', wheelPick: f.name, placeId: f.id !== f.key ? f.id : null, note: f.name })}>
+                      {f.name}
+                    </button>
+                  ))}
+                </span>
+              )}
+            </label>
           )}
         </div>
         <label>
@@ -216,13 +267,13 @@ function SnapEditor({ draft, setDraft, onClose }) {
             onChange={(e) => {
               const note = e.target.value;
               // 改寫成別家，就不算轉盤打卡
-              const off = draft.fromWheel && differsFromPick(note, draft.wheelPick) && !differsFromPick(draft.note, draft.wheelPick);
-              setDraft({ ...draft, note, fromWheel: off ? false : draft.fromWheel });
+              const off = draft.how === 'wheel' && differsFromPick(note, draft.wheelPick) && !differsFromPick(draft.note, draft.wheelPick);
+              setDraft({ ...draft, note, ...(off ? { how: 'self', fromWheel: false } : {}) });
             }}
             placeholder="例：自助餐三菜一肉"
           />
-          {draft.wheelPick && differsFromPick(draft.note, draft.wheelPick) && (
-            <span className="muted small">你寫的不是轉盤轉到的「{draft.wheelPick}」，評分會記在「{draft.note.trim()}」。</span>
+          {draft.how !== 'self' && draft.wheelPick && differsFromPick(draft.note, draft.wheelPick) && (
+            <span className="muted small">你寫的不是{draft.how === 'wheel' ? '轉盤轉到' : '今天選'}的「{draft.wheelPick}」，評分會記在「{draft.note.trim()}」。</span>
           )}
         </label>
         <label>
@@ -240,6 +291,8 @@ function SnapEditor({ draft, setDraft, onClose }) {
 function SnapViewer({ item, onClose }) {
   const { uid, api } = useData();
   const [full, setFull] = useState(null);
+  const [slots, setSlots] = useState(() => slotsOf(item));
+  const [how, setHow] = useState(() => howOf(item));
   useEffect(() => {
     getDoc(doc(db, 'users', uid, 'foodPhotos', item.id))
       .then((d) => setFull(d.data()?.data || item.thumb))
@@ -252,17 +305,23 @@ function SnapViewer({ item, onClose }) {
     onClose();
   };
   return (
-    <Sheet title={`${shortLabel(item.date)} ${LOG_SLOTS[item.slot] || ''}`} onClose={onClose}>
+    <Sheet title={`${shortLabel(item.date)} ${slotLabel(item)}`} onClose={onClose}>
       <img className="snap-preview" src={full || item.thumb} alt={item.note || '食物照片'} />
       {item.note && <p className="strong">{item.note}</p>}
-      <SlotPicker value={item.slot} onChange={(slot) => { api.set(`foodLog/${item.id}`, { slot }); onClose(); }} />
-      {item.slot === DRINK_SLOT && item.sugar && <p className="muted small">{item.size || ''}杯・{item.sugar}</p>}
+      <SlotPicker value={slots} onChange={(next) => { setSlots(next); api.set(`foodLog/${item.id}`, slotFields(next)); }} />
+      {slots.includes(DRINK_SLOT) && item.sugar && <p className="muted small">{item.size || ''}杯・{item.sugar}</p>}
       <p className="muted small">
-        {item.fromWheel ? `轉盤打卡（${wheelLabel(item)}）` : '自己選的'}
-        <button className="link" onClick={() => { api.set(`foodLog/${item.id}`, { fromWheel: !item.fromWheel }); onClose(); }}>
-          {item.fromWheel ? '改成自己選的' : '改成轉盤轉的'}
-        </button>
+        {how === 'wheel' ? `轉盤打卡（${wheelLabel({ ...item, fromWheel: true })}）` : how === 'today' ? `今天選擇${item.wheelPick ? `（${item.wheelPick}）` : ''}` : '自己選的'}
+        {item.url && <a className="link" href={item.url} target="_blank" rel="noreferrer">地圖</a>}
       </p>
+      <div className="seg three">
+        {HOWS.map(([k, l]) => (
+          <button type="button" key={k} className={how === k ? 'on' : ''} aria-pressed={how === k}
+            onClick={() => { setHow(k); api.set(`foodLog/${item.id}`, { how: k, fromWheel: k === 'wheel' }); }}>
+            {l}
+          </button>
+        ))}
+      </div>
       <div className="review-row">
         <span className="small strong">複評</span>
         <RateButtons item={item} onDone={onClose} />
@@ -282,7 +341,8 @@ export function useRate() {
     const { name, placeId } = ateAt(item);
     const key = reviewKey({ placeId, name });
     const ops = [{ set: `foodLog/${item.id}`, data: { rating, reviewSkipped: false } }];
-    if (key) ops.push({ set: `placeReviews/${key}`, merge: false, data: reviewUpdate(placeReviews[key], { name, placeId, rating }) });
+    // merge：收藏過的店評分後還是收藏（以前整份蓋掉，收藏會不見）
+    if (key) ops.push({ set: `placeReviews/${key}`, data: { ...reviewUpdate(placeReviews[key], { name, placeId, rating }), ...(item.url && !placeReviews[key]?.url ? { url: item.url } : {}) } });
     api.batch(ops);
   };
 }
@@ -314,7 +374,7 @@ function ReviewQueue({ items }) {
             <img src={it.thumb} alt="" />
             <div className="review-body">
               <strong>{ateAt(it).name}</strong>
-              <span className="muted small">{shortLabel(it.date)} {LOG_SLOTS[it.slot] || ''}{it.fromWheel ? '・轉盤' : ''}</span>
+              <span className="muted small">{shortLabel(it.date)} {slotLabel(it)}{it.fromWheel ? '・轉盤' : howOf(it) === 'today' ? '・今天選' : ''}</span>
               <RateButtons item={it} />
               <button className="link small" onClick={() => api.set(`foodLog/${it.id}`, { reviewSkipped: true })}>
                 這餐不評
@@ -327,11 +387,12 @@ function ReviewQueue({ items }) {
   );
 }
 
+// 可以多選；至少留一類
 function SlotPicker({ value, onChange }) {
   return (
-    <div className="seg slots" role="group" aria-label="類別">
+    <div className="seg slots" role="group" aria-label="類別（可多選）">
       {Object.entries(LOG_SLOTS).map(([k, l]) => (
-        <button type="button" key={k} className={value === k ? 'on' : ''} aria-pressed={value === k} onClick={() => onChange(k)}>
+        <button type="button" key={k} className={value.includes(k) ? 'on' : ''} aria-pressed={value.includes(k)} onClick={() => onChange(toggleSlot(value, k))}>
           {l}
         </button>
       ))}

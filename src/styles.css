@@ -886,3 +886,12 @@ details.section > summary { cursor: pointer; padding: 0.3rem 0; }
 .snap-stat.drink { background: var(--accent-soft); }
 .snap-stat.over { background: var(--accent); color: #fff8ec; }
 .snap-filter { margin-bottom: 0.6rem; }
+
+/* 今天選擇：收藏的「今天吃這個」、打卡貼網址、多選類別 */
+.row-acts { flex-wrap: wrap; }
+.row-acts .choose-link { color: var(--teal); font-weight: 900; }
+.choice-hint { background: var(--surface-2); border: 2px solid var(--line); border-radius: 12px; padding: 0.5rem 0.7rem; }
+.choice-hint .link { margin-left: 0.4rem; }
+.snap-url { display: flex; flex-direction: column; gap: 0.3rem; }
+.choice-favs { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+.snap-tag { max-width: calc(100% - 10px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

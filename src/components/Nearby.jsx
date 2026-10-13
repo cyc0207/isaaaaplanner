@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import Wheel from './Wheel.jsx';
 import { useData } from '../data.jsx';
-import { reviewOf, reviewKey, reviewUpdate, placeInfo, favoritesOf, RATING_TAG } from '../lib/foodlog.js';
+import { reviewOf, reviewKey, reviewUpdate, placeInfo, favoritesOf, RATING_TAG, rememberChoice } from '../lib/foodlog.js';
 import { Sheet } from './ui.jsx';
 import { logError } from '../lib/errlog.js';
 import { RADII, PRICES, searchNearby, searchAlong, getPosition, findPlace, normalize, groupCounts, randomArea, mergePlaces, sample } from '../lib/places.js';
@@ -38,6 +38,7 @@ export default function Nearby() {
   const { placeReviews, api } = useData();
   const [favSpin, setFavSpin] = useState(false);
   const [showFavs, setShowFavs] = useState(false);
+  const navigate = useNavigate();
 
   if (!KEY) {
     return (
@@ -159,6 +160,11 @@ export default function Nearby() {
     api.set(`placeReviews/${k}`, data);
     if (result?.id === p.id) setResult({ ...result, rating: data.rating });
   };
+  // 收藏的店「今天吃這個」：記成今天選擇，帶去打卡
+  const eatToday = (p) => {
+    rememberChoice({ name: p.name, url: p.url || '', placeId: p.id && p.id !== p.key ? p.id : null, kind });
+    navigate('/food?tab=snap');
+  };
   const act = { toggleFav, toggleBad };
   const badCount = rated.filter((p) => p.rating === 'bad').length;
   // 收藏過的店不放進來（在「我的收藏」轉）
@@ -261,7 +267,7 @@ export default function Nearby() {
           </div>
           {showFavs && (
             <ul className="list">
-              {favs.map((p) => <PlaceRow key={p.id} p={p} act={act} />)}
+              {favs.map((p) => <PlaceRow key={p.id} p={p} act={{ ...act, eatToday }} chooseLabel={kind === 'drink' ? '今天喝這個' : '今天吃這個'} />)}
             </ul>
           )}
         </div>
@@ -422,7 +428,7 @@ export default function Nearby() {
   );
 }
 
-function PlaceRow({ p, act }) {
+function PlaceRow({ p, act, chooseLabel }) {
   return (
     <li className="meal-choice place-row">
       <span className="meal-line">
@@ -434,6 +440,7 @@ function PlaceRow({ p, act }) {
         <span className="muted">{[p.group, p.priceLabel, dist(p.distance), p.address].filter(Boolean).join('・')}</span>
         {act && (
           <span className="row-acts">
+            {act.eatToday && <button className="link small strong choose-link" onClick={() => act.eatToday(p)}>{chooseLabel}</button>}
             <button className="link small" onClick={() => act.toggleFav(p)}>{p.fav ? '取消收藏' : '收藏'}</button>
             <button className="link small" onClick={() => act.toggleBad(p)}>{p.rating === 'bad' ? '取消負評' : '負評'}</button>
           </span>
