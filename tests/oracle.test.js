@@ -46,3 +46,20 @@ describe('雷諾曼・西比拉', () => {
     expect(BUILTIN_QUOTES.length).toBeGreaterThan(20);
   });
 });
+
+import { COLORS, COLOR_SPOTS, drawColor, colorById, colorLine } from '../src/lib/oracle.js';
+
+describe('穿搭：今天的顏色元素', () => {
+  it('抽一個顏色和位置，行動會帶到', () => {
+    expect(new Set(COLORS.map((c) => c.id)).size).toBe(COLORS.length);
+    expect(COLORS.every((c) => /^#[0-9a-f]{6}$/.test(c.hex) && c.feel)).toBe(true);
+    const seq = [0, 0.99999];
+    const p = drawColor(() => seq.shift());
+    expect(p).toEqual({ colorId: 'c1', spot: COLOR_SPOTS[COLOR_SPOTS.length - 1] });
+    expect(colorById('c1').name).toBe('磚紅');
+    expect(colorLine({ colorId: 'c5', spot: '用在鞋子' })).toBe('海軍藍・用在鞋子');
+    expect(colorLine(undefined)).toBe('');
+    expect(topicAction('wear', ['len-3', 'len-15', 'len-25'], { colorId: 'c5', spot: '用在鞋子' })).toContain('今天的顏色是海軍藍，用在鞋子');
+    expect(topicAction('wear', ['len-3', 'len-15', 'len-25'])).toContain('今天以海軍藍為主');
+  });
+});
