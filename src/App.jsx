@@ -20,6 +20,7 @@ import StudyPage from './pages/StudyPage.jsx';
 import { Icon } from './components/ui.jsx';
 import ErrorBoundary from './components/ErrorBoundary.jsx';
 import { onErrorShown } from './lib/errlog.js';
+import { useNewVersion } from './lib/version.js';
 import { inAppBrowser, isAndroid, chromeIntent } from './lib/inapp.js';
 
 export default function App() {
@@ -106,6 +107,7 @@ function Shell({ user }) {
 
   useEffect(() => onErrorShown(setOops), []);
   const problem = data.error || oops;
+  const fresh = useNewVersion();
 
   return (
     <div className="app">
@@ -122,6 +124,11 @@ function Shell({ user }) {
             回到真正的今天
           </button>
         </div>
+      )}
+      {fresh && (
+        <button className="update-banner" onClick={() => window.location.reload()}>
+          網站有新版本，點這裡更新
+        </button>
       )}
       {problem && (
         <div

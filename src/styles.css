@@ -895,3 +895,6 @@ details.section > summary { cursor: pointer; padding: 0.3rem 0; }
 .snap-url { display: flex; flex-direction: column; gap: 0.3rem; }
 .choice-favs { display: flex; flex-wrap: wrap; gap: 0.35rem; }
 .snap-tag { max-width: calc(100% - 10px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* 網站有新版本 */
+.update-banner { position: sticky; top: 0; z-index: 21; display: block; width: 100%; border: 0; border-bottom: 2px solid var(--line); background: var(--mustard); color: #2b2118; font: inherit; font-weight: 900; padding: 0.6rem 1rem; cursor: pointer; }
