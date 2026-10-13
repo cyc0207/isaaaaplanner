@@ -20,7 +20,7 @@ import { latestWeight, needsWeighIn } from '../lib/body.js';
 import { useFoodLog } from '../components/FoodLog.jsx';
 import { OotdTodayCard } from '../components/OotdLog.jsx';
 import { StudyTodayCard } from './StudyPage.jsx';
-import { photoStreak, LOG_SLOTS } from '../lib/foodlog.js';
+import { photoStreak, slotLabel } from '../lib/foodlog.js';
 
 export default function TodayPage() {
   const data = useData();
@@ -395,7 +395,7 @@ function FoodHero() {
         </Link>
         {todaySnaps.slice(0, 3).map((it) => (
           <Link key={it.id} to="/food?tab=snap" className="food-hero-snap">
-            <img src={it.thumb} alt={`${LOG_SLOTS[it.slot] || ''} ${it.note || ''}`} />
+            <img src={it.thumb} alt={`${slotLabel(it)} ${it.note || ''}`} />
           </Link>
         ))}
         {!todaySnaps.length && <Link to="/food?tab=snap" className="food-hero-snap empty">今天還沒拍</Link>}

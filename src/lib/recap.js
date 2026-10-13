@@ -1,4 +1,4 @@
-import { LOG_SLOTS } from './foodlog.js';
+import { LOG_SLOTS, slotsOf } from './foodlog.js';
 
 // 一週吃什麼：從打卡挑照片排成 IG 圖
 export const FORMATS = {
@@ -43,7 +43,7 @@ export function gridFor(n, format, kind = 'food') {
 
 export function weekStats(items) {
   const slots = {};
-  for (const i of items) slots[i.slot] = (slots[i.slot] || 0) + 1;
+  for (const i of items) for (const k of slotsOf(i)) slots[k] = (slots[k] || 0) + 1;
   const top = Object.entries(slots).sort((a, b) => b[1] - a[1])[0];
   return {
     meals: items.length,

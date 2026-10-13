@@ -3,7 +3,7 @@ import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../firebase.js';
 import { useData } from '../data.jsx';
 import { today, addDays, weekDays, WEEKDAY_NAMES, weekday } from '../lib/date.js';
-import { LOG_SLOTS, ateAt } from '../lib/foodlog.js';
+import { slotLabel, ateAt } from '../lib/foodlog.js';
 import { FORMATS, pickPhotos, gridFor, weekStats } from '../lib/recap.js';
 import { Sheet } from './ui.jsx';
 
@@ -36,7 +36,7 @@ function drawCover(ctx, img, x, y, w, h) {
 export const KINDS = {
   food: {
     title: '一週吃什麼', photos: 'foodPhotos', file: 'week-food', aspect: 1, empty: '打卡照片',
-    caption: (p) => [`週${WEEKDAY_NAMES[weekday(p.date)]} ${LOG_SLOTS[p.slot] || ''}`.trim(), ateAt(p).name],
+    caption: (p) => [`週${WEEKDAY_NAMES[weekday(p.date)]} ${slotLabel(p)}`.trim(), ateAt(p).name],
     chips: (s, story) => [`${s.meals} 餐`, `${s.days} 天有打卡`, ...(s.wheel ? [`轉盤 ${s.wheel} 次`] : []), ...(story && s.good ? [`好吃 ${s.good} 家`] : [])],
     footer: (s) => (s.topSlot ? `最常打卡：${s.topSlot}` : ''),
   },

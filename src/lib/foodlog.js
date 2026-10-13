@@ -11,13 +11,33 @@ export function slotCategory(slot, categories) {
   return name && categories.includes(name) ? name : '其他';
 }
 
-// 這週（週一到週日）每一類打卡幾次
+// 一張照片可以同時是好幾類（例：晚餐＋飲料）。新的存 slots 陣列，舊的只有 slot，讀的時候一起認
+export function slotsOf(it) {
+  const list = Array.isArray(it?.slots) && it.slots.length ? it.slots : it?.slot ? [it.slot] : [];
+  return orderSlots(list);
+}
+export const hasSlot = (it, k) => slotsOf(it).includes(k);
+// 照固定順序排（早餐、午餐、晚餐、點心、飲料、宵夜），第一個是主要的那類
+export const orderSlots = (list) => Object.keys(LOG_SLOTS).filter((k) => list.includes(k));
+export const slotLabel = (it, sep = '＋') => slotsOf(it).map((k) => LOG_SLOTS[k]).join(sep);
+// 存檔用：slots 存全部，slot 留主要那類，舊版程式和舊資料都讀得懂
+export function slotFields(list) {
+  const slots = orderSlots(list);
+  return { slots, slot: slots[0] || null };
+}
+// 點一下加進去、再點一下拿掉，至少留一個
+export function toggleSlot(list, k) {
+  if (!list.includes(k)) return orderSlots([...list, k]);
+  return list.length > 1 ? list.filter((x) => x !== k) : list;
+}
+
+// 這週（週一到週日）每一類打卡幾次：晚餐＋飲料那張，晚餐和飲料各算一次
 export function weekSlotCounts(items, day) {
   const days = weekDays(day);
   const out = Object.fromEntries(Object.keys(LOG_SLOTS).map((k) => [k, 0]));
   for (const it of items) {
     if (it.date < days[0] || it.date > days[6]) continue;
-    if (it.slot in out) out[it.slot] += 1;
+    for (const k of slotsOf(it)) if (k in out) out[k] += 1;
   }
   return out;
 }
@@ -72,6 +92,78 @@ export function forgetSpin() {
   } catch {
     // 無所謂
   }
+}
+
+// 今天選擇：在收藏按「今天吃這個」或打卡時貼地圖網址。記到今天結束，打卡時預設帶進來
+const CHOICE_KEY = 'planner.todayChoice';
+
+export function rememberChoice({ name, url = '', placeId = null, kind = 'food' }, now = Date.now()) {
+  try {
+    localStorage.setItem(CHOICE_KEY, JSON.stringify({ name, url, placeId, kind, at: now }));
+  } catch {
+    // 存不了就打卡時自己貼
+  }
+}
+
+export function todayChoice(now = Date.now()) {
+  try {
+    const v = JSON.parse(localStorage.getItem(CHOICE_KEY) || 'null');
+    if (v && new Date(v.at).toDateString() === new Date(now).toDateString()) return v;
+  } catch {
+    // 讀不到當作沒選
+  }
+  return null;
+}
+
+export function forgetChoice() {
+  try {
+    localStorage.removeItem(CHOICE_KEY);
+  } catch {
+    // 無所謂
+  }
+}
+
+// 這餐怎麼決定的：wheel 轉盤、self 自己選、today 今天選擇（收藏或貼網址）
+export const HOWS = [['wheel', '轉盤轉的'], ['self', '自己選的'], ['today', '今天選擇']];
+export const howOf = (it) => it.how || (it.fromWheel ? 'wheel' : 'self');
+
+// 打卡要帶進來的預設：轉盤和今天選擇都有的話，用比較晚的那個
+export function startHow(spin, choice) {
+  if (choice && (!spin || choice.at >= spin.at)) {
+    return { how: 'today', fromWheel: false, wheelSource: null, wheelPick: choice.name, placeId: choice.placeId || null, url: choice.url || '', note: choice.name };
+  }
+  if (spin) return { how: 'wheel', fromWheel: true, wheelSource: spin.source, wheelPick: spin.name, placeId: spin.placeId || null, url: '', note: spin.name };
+  return { how: 'self', fromWheel: false, wheelSource: null, wheelPick: '', placeId: null, url: '', note: '' };
+}
+
+// 從 Google 地圖網址猜店名：/maps/place/店名/... 或 ?q=店名、?query=店名。短網址（maps.app.goo.gl）猜不出來
+export function nameFromMapsUrl(url) {
+  let u;
+  try {
+    u = new URL(String(url || '').trim());
+  } catch {
+    return '';
+  }
+  const m = u.pathname.match(/\/maps\/place\/([^/]+)/);
+  let raw = m ? m[1] : u.searchParams.get('q') || u.searchParams.get('query') || '';
+  try {
+    raw = decodeURIComponent(raw.replace(/\+/g, ' '));
+  } catch {
+    // 留原樣
+  }
+  raw = raw.trim();
+  // q 也可能是座標
+  if (!raw || /^-?\d+(\.\d+)?\s*,\s*-?\d+(\.\d+)?$/.test(raw)) return '';
+  return raw;
+}
+
+export const isUrl = (s) => /^https?:\/\/\S+$/i.test(String(s || '').trim());
+
+// 貼的網址是不是收藏裡的那家（比對網址或店家 id）
+export function favByUrl(favs, url) {
+  const v = String(url || '').trim();
+  if (!v) return null;
+  return favs.find((f) => (f.url && f.url === v) || (f.id && v.includes(f.id))) || null;
 }
 
 export function wheelLabel(it) {

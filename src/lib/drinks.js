@@ -1,4 +1,5 @@
 import { weekDays } from './date.js';
+import { hasSlot } from './foodlog.js';
 import { DRINK, isLivingExpense, weekDrinkLeft } from './budget.js';
 
 // 今天要不要喝飲料：轉盤格子比例看本週飲料預算、杯數和全糖杯數
@@ -10,7 +11,7 @@ export function drinkOdds({ budget, expenses, day, logs = [] }) {
   const { left, weekly } = weekDrinkLeft(budget, expenses, day);
   const days = weekDays(day);
   const week = expenses.filter((e) => isLivingExpense(e) && e.category === DRINK && e.date >= days[0] && e.date <= days[6]);
-  const snaps = logs.filter((l) => l.slot === 'drink' && l.date >= days[0] && l.date <= days[6]);
+  const snaps = logs.filter((l) => hasSlot(l, 'drink') && l.date >= days[0] && l.date <= days[6]);
   const { cups, fullSugar, today } = mergeCups(week, snaps, day);
 
   let drink = 2;
