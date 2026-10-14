@@ -110,7 +110,7 @@ export function DataProvider({ uid, children }) {
           if (op.add) {
             const d = op.id ? doc(col(op.add), op.id) : doc(col(op.add));
             ids.push(d.id);
-            b.set(d, { ...op.data, createdAt: serverTimestamp(), createdAtMs: Date.now() });
+            b.set(d, { ...op.data, createdAt: serverTimestamp(), createdAtMs: op.data.createdAtMs ?? Date.now() });
           } else if (op.set) b.set(ref(op.set), op.data, { merge: op.merge ?? true });
           else if (op.remove) b.delete(ref(op.remove));
         }

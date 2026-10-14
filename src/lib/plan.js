@@ -25,6 +25,19 @@ export function todayTasks(tasks, day) {
   return { shown: list.slice(0, MAX_TODAY), overflow: list.slice(MAX_TODAY) };
 }
 
+// 隨手記：還沒排日期、還沒做完的任務，新記的在上面
+export function captureTasks(tasks) {
+  return tasks.filter((t) => !t.date && !t.done).sort((a, b) => (b.createdAtMs || 0) - (a.createdAtMs || 0));
+}
+
+// 一次貼好幾行：一行一件，去掉開頭的 -、*、•、1. 這類清單符號
+export function splitCapture(text) {
+  return String(text || '')
+    .split(/\r?\n/)
+    .map((l) => l.replace(/^\s*(?:[-*•・]|\d+[.、)])\s*/, '').trim())
+    .filter(Boolean);
+}
+
 export function overdueTasks(tasks, day) {
   return tasks.filter((t) => t.date && t.date < day && !t.done).sort((a, b) => a.date.localeCompare(b.date));
 }
