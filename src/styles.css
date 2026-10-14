@@ -910,3 +910,21 @@ details.section > summary { cursor: pointer; padding: 0.3rem 0; }
 .open-reminder select { width: auto; }
 .open-reminder-btns { margin: 0.7rem 0 0.3rem; }
 .open-reminder h3 { margin: 1.1rem 0 0.4rem; font-size: 1rem; }
+
+/* 隨手記：想到就先記，不限件數 */
+.capture h2 { display: flex; align-items: center; gap: 0.5rem; }
+.count-pill { font-family: var(--pixel); font-size: 1.15rem; line-height: 1; background: var(--mustard); color: #2b2118; border: 2px solid var(--line); border-radius: 999px; padding: 0.05rem 0.55rem; }
+.capture-form { display: flex; gap: 0.4rem; align-items: stretch; margin: 0.4rem 0 0.2rem; }
+.capture-form textarea { flex: 1; font-size: 1rem; min-height: 44px; resize: none; }
+.capture-quick { display: inline-flex; gap: 0.3rem; }
+.capture-quick .chip-btn { font-size: 0.78rem; padding: 0.05rem 0.6rem; background: var(--surface-solid); }
+.capture-quick .chip-btn:first-child { background: var(--mustard); }
+
+/* 今天已經 3 件：明天做，或換掉一件 */
+.full-day-q { font-size: 1.05rem; margin: 0.2rem 0 0.4rem; }
+.full-day-h { font-size: 0.95rem; margin: 1rem 0 0.4rem; }
+.swap-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.4rem; }
+.swap-btn { width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; text-align: left; font: inherit; color: var(--text); background: var(--surface-solid); border: 2px solid var(--line); border-radius: 14px; padding: 0.6rem 0.8rem; box-shadow: 2px 2px 0 var(--shadow); cursor: pointer; }
+.swap-btn:active { transform: translate(2px, 2px); box-shadow: none; }
+.swap-title { font-weight: 700; }
+.swap-go { color: var(--teal); font-weight: 700; font-size: 0.85rem; white-space: nowrap; }
