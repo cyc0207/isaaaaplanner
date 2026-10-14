@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { habitStreak, todayTasks, pendingWeekly, nextDeadline, deadlineReminders, monthToClose, isReconcileDay, fixedDue } from '../src/lib/plan.js';
+import { habitStreak, todayTasks, pendingWeekly, nextDeadline, deadlineReminders, monthToClose, isReconcileDay, fixedDue, captureTasks, splitCapture } from '../src/lib/plan.js';
 import { weekday } from '../src/lib/date.js';
 import { seedDocs } from '../src/lib/seed.js';
 
@@ -58,5 +58,21 @@ describe('提醒', () => {
     expect(fixedDue(f, new Set(), '2026-10-10')).toHaveLength(0);
     expect(fixedDue(f, new Set(), '2026-10-11')).toHaveLength(1);
     expect(fixedDue(f, new Set(['2026-10_rent']), '2026-10-11')).toHaveLength(0);
+  });
+});
+
+describe('隨手記', () => {
+  it('只收沒日期、沒做完的，新的在上面', () => {
+    const tasks = [
+      { id: 'a', date: null, done: false, createdAtMs: 1 },
+      { id: 'b', date: '2026-10-14', done: false, createdAtMs: 2 },
+      { id: 'c', date: null, done: true, createdAtMs: 3 },
+      { id: 'd', done: false, createdAtMs: 4 },
+    ];
+    expect(captureTasks(tasks).map((t) => t.id)).toEqual(['d', 'a']);
+  });
+  it('貼好幾行變好幾件，去掉清單符號和空行', () => {
+    expect(splitCapture('- 回信\n\n2. 買牛奶\n• 繳房租 \n')).toEqual(['回信', '買牛奶', '繳房租']);
+    expect(splitCapture('  ')).toEqual([]);
   });
 });

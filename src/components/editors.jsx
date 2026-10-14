@@ -180,8 +180,9 @@ export function AddTaskForm({ date, onAdd, disabledReason, compact }) {
       setMsg(disabledReason);
       return;
     }
-    onAdd({ title: title.trim(), date, project: project.trim() });
-    setOk(`已新增「${title.trim()}」`);
+    // onAdd 回傳 false：交給外面問要排哪天，這裡先不說「已新增」
+    const r = onAdd({ title: title.trim(), date, project: project.trim() });
+    setOk(r === false ? '' : `已新增「${title.trim()}」`);
     setTitle('');
     setProject('');
     setMsg('');

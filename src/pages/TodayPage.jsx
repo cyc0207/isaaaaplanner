@@ -1,10 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useData } from '../data.jsx';
 import { today, weekday, weekDays, monthKey, monthLabel, dayInMonth, shortLabel, WEEKDAY_NAMES, addDays } from '../lib/date.js';
 import {
   todayTasks, overdueTasks, weekCompletion, habitStreak, pendingWeekly, nextDeadline, deadlineReminders,
-  monthToClose, isReconcileDay, lastReconcile, fixedDue, recurringDoneId, MAX_TODAY,
+  monthToClose, isReconcileDay, lastReconcile, fixedDue, recurringDoneId, MAX_TODAY, captureTasks, splitCapture,
 } from '../lib/plan.js';
 import { todayMealLeft, weekDrinkLeft, livingSummary } from '../lib/budget.js';
 import { ENGLISH_HABIT } from '../lib/seed.js';
@@ -12,7 +12,7 @@ import { TarotCard } from './TarotPage.jsx';
 import { QuoteCard, OracleHomeCard } from './OraclePage.jsx';
 import { eatLine } from '../lib/oracle.js';
 import BalancePie from '../components/BalancePie.jsx';
-import { Ring, TaskRow, money, deadlineLabel } from '../components/ui.jsx';
+import { Ring, TaskRow, Sheet, money, deadlineLabel } from '../components/ui.jsx';
 import { AddTaskForm, TaskEditor, useTaskActions, payFixed } from '../components/editors.jsx';
 import { useNextMeal, useEatMeal, MealChoices } from './FoodPage.jsx';
 import { fullSugarCount, kcalToday } from '../lib/meals.js';
@@ -45,10 +45,31 @@ export default function TodayPage() {
   const full = shown.length >= MAX_TODAY;
   const kcal = kcalToday(expenses, day);
 
-  const moveToToday = (t) => {
-    if (full) return window.alert('今天已經有 3 件了：先完成或移到別天');
-    actions.move(t, day);
+  const tomorrow = addDays(day, 1);
+  const captured = captureTasks(tasks);
+  // 今天滿 3 件時要排進今天的那一件：{ title, project } 是新記的，{ task } 是從隨手記／之前沒做完拉過來的
+  const [asking, setAsking] = useState(null);
+  const [notice, setNotice] = useState('');
+  useEffect(() => {
+    if (!notice) return undefined;
+    const t = setTimeout(() => setNotice(''), 3000);
+    return () => clearTimeout(t);
+  }, [notice]);
+
+  const putOn = (item, date) =>
+    item.task ? actions.move(item.task, date) : actions.add({ title: item.title, project: item.project || '', date });
+
+  // 排進今天：還沒滿就直接放，滿了就問要明天做，還是把今天一件換到明天
+  const placeToday = (item) => {
+    if (!full) {
+      putOn(item, day);
+      return true;
+    }
+    setAsking(item);
+    return false;
   };
+
+  const moveToToday = (t) => placeToday({ task: t });
 
   const toggleHabit = (name) => {
     const on = !habitLog[day]?.done?.[name];
@@ -144,11 +165,8 @@ export default function TodayPage() {
             <TaskRow key={t.id} task={t} onToggle={actions.toggle} onMove={actions.move} onEdit={setEditing} />
           ))}
         </ul>
-        <AddTaskForm
-          date={day}
-          onAdd={actions.add}
-          disabledReason={full ? '今天已經有 3 件了：先完成或移到別天' : ''}
-        />
+        <AddTaskForm date={day} onAdd={(f) => placeToday(f)} />
+        {notice && <p className="hint ok">{notice}</p>}
         {overflow.length > 0 && (
           <div className="more">
             <button className="link" onClick={() => setShowOverflow(!showOverflow)}>
@@ -181,6 +199,14 @@ export default function TodayPage() {
           </details>
         )}
       </section>
+
+      <CaptureList
+        items={captured}
+        actions={actions}
+        onToday={(task) => placeToday({ task })}
+        onEdit={setEditing}
+        day={day}
+      />
 
       <section className="section">
         <h2>每天固定</h2>
@@ -222,7 +248,148 @@ export default function TodayPage() {
       </section>
 
       {editing && <TaskEditor task={editing} onClose={() => setEditing(null)} />}
+      {asking && (
+        <FullDayChooser
+          item={asking}
+          today={shown.filter((t) => !t.done)}
+          tomorrowCount={tasks.filter((t) => t.date === tomorrow && !t.done).length}
+          onTomorrow={() => {
+            putOn(asking, tomorrow);
+            setNotice(`「${asking.task?.title || asking.title}」排到明天了`);
+            setAsking(null);
+          }}
+          onSwap={(other) => {
+            actions.move(other, tomorrow);
+            putOn(asking, day);
+            setNotice(`「${other.title}」移到明天，「${asking.task?.title || asking.title}」今天做`);
+            setAsking(null);
+          }}
+          onCapture={() => {
+            if (!asking.task) {
+              putOn(asking, null);
+              setNotice(`「${asking.title}」先記在隨手記`);
+            }
+            setAsking(null);
+          }}
+          onClose={() => setAsking(null)}
+        />
+      )}
     </div>
+  );
+}
+
+// 今天已經 3 件：問這件要明天做，還是把今天的一件換到明天
+function FullDayChooser({ item, today: todayList, tomorrowCount, onTomorrow, onSwap, onCapture, onClose }) {
+  const title = item.task?.title || item.title;
+  return (
+    <Sheet title="今天已經 3 件了" onClose={onClose}>
+      <p className="full-day-q">
+        「<strong>{title}</strong>」要怎麼排？
+      </p>
+      <button className="btn primary big" onClick={onTomorrow}>
+        明天做{tomorrowCount ? `（明天已有 ${tomorrowCount} 件）` : ''}
+      </button>
+      {todayList.length > 0 && (
+        <>
+          <h3 className="full-day-h">或是今天做這件，把其中一件移到明天：</h3>
+          <ul className="swap-list">
+            {todayList.map((t) => (
+              <li key={t.id}>
+                <button className="swap-btn" onClick={() => onSwap(t)}>
+                  <span className="swap-title">{t.title}</span>
+                  <span className="swap-go">移到明天 →</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+      <button className="btn big" onClick={onCapture}>
+        {!item.task ? '先記在隨手記，之後再排' : item.task.date ? '先不排' : '留在隨手記'}
+      </button>
+    </Sheet>
+  );
+}
+
+// 隨手記：想到就先記下來（不限件數），之後再排到哪天
+function CaptureList({ items, actions, onToday, onEdit, day }) {
+  const { api } = useData();
+  const [text, setText] = useState('');
+  const [ok, setOk] = useState('');
+  const [all, setAll] = useState(false);
+  useEffect(() => {
+    if (!ok) return undefined;
+    const t = setTimeout(() => setOk(''), 2500);
+    return () => clearTimeout(t);
+  }, [ok]);
+
+  const submit = (e) => {
+    e?.preventDefault();
+    const titles = splitCapture(text);
+    if (!titles.length) return;
+    const now = Date.now();
+    // 一次貼好幾行：照貼上的順序排（第一行在最上面）
+    api.batch(
+      titles.map((title, i) => ({
+        add: 'tasks',
+        data: { title, date: null, project: '', note: '', done: false, doneAt: null, isToday: false, createdAtMs: now + titles.length - i },
+      })),
+    );
+    setOk(titles.length > 1 ? `記下 ${titles.length} 件` : `記下「${titles[0]}」`);
+    setText('');
+  };
+
+  const shown = all ? items : items.slice(0, 8);
+  return (
+    <section className="section capture">
+      <h2>
+        隨手記 {items.length > 0 && <span className="count-pill">{items.length}</span>}
+      </h2>
+      <p className="muted small">想到就先記，不限件數，也可以一次貼好幾行。要做的時候按「今天」或「明天」。</p>
+      <form className="capture-form" onSubmit={submit}>
+        <textarea
+          rows={1}
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) submit(e);
+          }}
+          placeholder="想到什麼先記這裡"
+          aria-label="隨手記"
+        />
+        <button className="btn primary" type="submit">
+          記下來
+        </button>
+      </form>
+      {ok && <p className="hint ok">{ok}</p>}
+      <ul className="list">
+        {shown.map((t) => (
+          <TaskRow
+            key={t.id}
+            task={t}
+            onToggle={actions.toggle}
+            onMove={(task, d) => (d === day ? onToday(task) : actions.move(task, d))}
+            onEdit={onEdit}
+            onDelete={actions.remove}
+            extra={
+              <span className="capture-quick">
+                <button className="chip-btn" onClick={(e) => { e.stopPropagation(); onToday(t); }}>
+                  今天
+                </button>
+                <button className="chip-btn" onClick={(e) => { e.stopPropagation(); actions.move(t, addDays(day, 1)); }}>
+                  明天
+                </button>
+              </span>
+            }
+          />
+        ))}
+      </ul>
+      {items.length > 8 && (
+        <button className="link" onClick={() => setAll(!all)}>
+          {all ? '收起來 ▲' : `看全部 ${items.length} 件 ▼`}
+        </button>
+      )}
+    </section>
   );
 }
 
