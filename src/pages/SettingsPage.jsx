@@ -9,6 +9,8 @@ import {
 import { parseRule } from '../lib/plan.js';
 import { money, Icon } from '../components/ui.jsx';
 import ImportExport from '../components/ImportExport.jsx';
+import { REMINDER_TIMES, DEFAULT_TIME, icsPath, googleCalendarUrl } from '../lib/reminder.js';
+import { isAndroid } from '../lib/inapp.js';
 
 export default function SettingsPage({ user }) {
   useEffect(() => {
@@ -22,7 +24,7 @@ export default function SettingsPage({ user }) {
       </header>
       <nav className="settings-nav">
         {[
-          ['accounts', '帳戶'], ['budget', '預算'], ['fixed', '固定支出'], ['reconcile', '對帳'],
+          ['reminder', '每天提醒'], ['accounts', '帳戶'], ['budget', '預算'], ['fixed', '固定支出'], ['reconcile', '對帳'],
           ['habits', '每日固定'], ['recurring', '每週固定'], ['import', '匯入／匯出'], ['errors', '錯誤紀錄'],
         ].map(([id, l]) => (
           <a key={id} href={`#${id}`} onClick={(e) => { e.preventDefault(); document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' }); }}>
@@ -30,6 +32,7 @@ export default function SettingsPage({ user }) {
           </a>
         ))}
       </nav>
+      <ReminderSettings />
       <AccountsSettings />
       <BudgetSettings />
       <FixedSettings />
@@ -50,6 +53,66 @@ export default function SettingsPage({ user }) {
         <p className="muted small">測試用：網址後面加 <code>?today=2026-11-01</code> 可以假裝今天是那一天。</p>
       </section>
     </div>
+  );
+}
+
+// Android Chrome 會先送出「可以安裝」事件，存起來讓按鈕叫出安裝視窗
+let installEvent = null;
+if (typeof window !== 'undefined') {
+  window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); installEvent = e; });
+}
+
+function ReminderSettings() {
+  const [time, setTime] = useState(() => {
+    try { return localStorage.getItem('reminderTime') || DEFAULT_TIME; } catch { return DEFAULT_TIME; }
+  });
+  const [canInstall, setCanInstall] = useState(!!installEvent);
+  useEffect(() => {
+    const on = () => setCanInstall(true);
+    window.addEventListener('beforeinstallprompt', on);
+    return () => window.removeEventListener('beforeinstallprompt', on);
+  }, []);
+  const pick = (t) => {
+    setTime(t);
+    try { localStorage.setItem('reminderTime', t); } catch { /* 無痕模式存不了也沒關係 */ }
+  };
+  const installed = window.matchMedia?.('(display-mode: standalone)').matches || window.navigator.standalone;
+  const android = isAndroid();
+  return (
+    <section className="section open-reminder" id="reminder">
+      <h2>每天提醒我開 app</h2>
+      <p className="muted">提醒放進手機行事曆，每天時間到會跳通知，點通知就打開這裡。不用一直開著網頁。</p>
+      <label className="row gap">
+        <span>每天幾點</span>
+        <select value={time} onChange={(e) => pick(e.target.value)} aria-label="提醒時間">
+          {REMINDER_TIMES.map((t) => <option key={t} value={t}>{t}</option>)}
+        </select>
+        <span className="muted small">台灣時間</span>
+      </label>
+      <div className="row gap wrap open-reminder-btns">
+        <a className={`btn ${android ? '' : 'primary'}`} href={icsPath(time)}>
+          加到 iPhone 行事曆
+        </a>
+        <a className={`btn ${android ? 'primary' : ''}`} href={googleCalendarUrl(time)} target="_blank" rel="noreferrer">
+          加到 Google 日曆
+        </a>
+      </div>
+      <p className="muted small">
+        iPhone：點了選「加入所有」。Google 日曆：按「儲存」，通知時間用日曆預設（可在活動裡改成「活動開始時」）。要換時間就先在行事曆刪掉舊的提醒再加一次。
+      </p>
+      <h3>放到主畫面，一點就開</h3>
+      {installed ? (
+        <p className="hint ok">已經從主畫面打開了 ✓</p>
+      ) : canInstall ? (
+        <button className="btn" onClick={async () => { await installEvent?.prompt(); installEvent = null; setCanInstall(false); }}>
+          加到主畫面
+        </button>
+      ) : (
+        <p className="muted small">
+          {android ? 'Chrome 右上角「⋮」→「加到主畫面」。' : 'Safari 下面的「分享」→「加入主畫面」。'}
+        </p>
+      )}
+    </section>
   );
 }
 
