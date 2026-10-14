@@ -906,6 +906,11 @@ details.section > summary { cursor: pointer; padding: 0.3rem 0; }
 .color-swatch.small { width: 16px; height: 16px; border-width: 1.5px; border-radius: 4px; box-shadow: none; }
 .color-chip { display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.85rem; font-weight: 700; }
 
+/* 每天提醒 */
+.open-reminder select { width: auto; }
+.open-reminder-btns { margin: 0.7rem 0 0.3rem; }
+.open-reminder h3 { margin: 1.1rem 0 0.4rem; font-size: 1rem; }
+
 /* 隨手記：想到就先記，不限件數 */
 .capture h2 { display: flex; align-items: center; gap: 0.5rem; }
 .count-pill { font-family: var(--pixel); font-size: 1.15rem; line-height: 1; background: var(--mustard); color: #2b2118; border: 2px solid var(--line); border-radius: 999px; padding: 0.05rem 0.55rem; }
