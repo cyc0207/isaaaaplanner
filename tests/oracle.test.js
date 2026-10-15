@@ -63,3 +63,18 @@ describe('穿搭：今天的顏色元素', () => {
     expect(topicAction('wear', ['len-3', 'len-15', 'len-25'])).toContain('今天以海軍藍為主');
   });
 });
+
+import { loveDetail } from '../src/lib/oracle.js';
+
+describe('桃花小解析', () => {
+  it('每張西比拉都有時機、類型、心動點，三張各看一項', () => {
+    expect(SIBILLA.every((c) => c.when && c.type && c.why)).toBe(true);
+    const d = loveDetail(['sib-1', 'sib-2', 'sib-3']);
+    expect(d.map((x) => x.label)).toEqual(['什麼時候容易遇到', '對方可能是什麼類型', '會因為什麼心動']);
+    expect(d[0].text).toBe(oracleCard('sib-1').when);
+    expect(d[1].text).toBe(oracleCard('sib-2').type);
+    expect(d[2].text).toBe(oracleCard('sib-3').why);
+    expect(loveDetail(['sib-1'])).toEqual([]);
+    expect(SIBILLA.map((c) => c.when + c.type + c.why).join('')).not.toMatch(/一定會|未來將/);
+  });
+});

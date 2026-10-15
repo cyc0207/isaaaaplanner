@@ -928,3 +928,6 @@ details.section > summary { cursor: pointer; padding: 0.3rem 0; }
 .swap-btn:active { transform: translate(2px, 2px); box-shadow: none; }
 .swap-title { font-weight: 700; }
 .swap-go { color: var(--teal); font-weight: 700; font-size: 0.85rem; white-space: nowrap; }
+.love-detail { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.45rem; }
+.love-detail li { display: flex; flex-direction: column; align-items: flex-start; gap: 0.15rem; background: var(--surface-solid); border: 2px solid var(--line); border-left: 8px solid var(--accent); border-radius: 12px; padding: 0.5rem 0.7rem; }
+.love-text { font-weight: 800; }
