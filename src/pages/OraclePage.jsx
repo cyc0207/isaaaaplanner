@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useData } from '../data.jsx';
 import { today, shortLabel } from '../lib/date.js';
-import { DECKS, TOPICS, TOPIC_KEYS, oracleCard, drawFrom, drawTopic, topicReading, topicAction, oraclePrompt, quoteOfDay, BUILTIN_QUOTES, drawColor, colorById, colorLine } from '../lib/oracle.js';
+import { DECKS, TOPICS, TOPIC_KEYS, oracleCard, drawFrom, drawTopic, topicReading, topicAction, oraclePrompt, quoteOfDay, BUILTIN_QUOTES, drawColor, colorById, colorLine, loveDetail } from '../lib/oracle.js';
 import { CopyButton } from './TarotPage.jsx';
 
 // 每日三抽存在 oracleLog/{日期}：{ wear: { cards, done }, eat: {...}, love: {...}, free: { deck, cards, q } }
@@ -75,6 +75,26 @@ function ColorPick({ pick, onDraw }) {
   );
 }
 
+function LoveDetail({ cards }) {
+  const list = loveDetail(cards);
+  if (!list.length) return null;
+  return (
+    <>
+      <div className="oracle-sub">桃花小解析</div>
+      <ul className="love-detail">
+        {list.map((x) => (
+          <li key={x.label}>
+            <span className="tarot-pos">{x.label}</span>
+            <span className="love-text">{x.text}</span>
+            <span className="muted small">來自 {x.card.zh}</span>
+          </li>
+        ))}
+      </ul>
+      <p className="muted small">這是牌面給的好玩提示，不是一定會發生的事，可以當成今天多留意的方向。</p>
+    </>
+  );
+}
+
 function TopicBlock({ topic, data, onDraw, onToggle, day, color, onColor }) {
   const t = TOPICS[topic];
   const [fresh, setFresh] = useState(false);
@@ -104,6 +124,7 @@ function TopicBlock({ topic, data, onDraw, onToggle, day, color, onColor }) {
               </li>
             ))}
           </ul>
+          {topic === 'love' && <LoveDetail cards={cards} />}
           <div className="oracle-sub">今天的行動</div>
           <ul className="tarot-actions">
             <li className={data.done ? 'done' : ''}>
@@ -124,7 +145,7 @@ function TopicBlock({ topic, data, onDraw, onToggle, day, color, onColor }) {
             )}
             <CopyButton
               className="btn small"
-              text={oraclePrompt({ day, deck: t.deck, cards, positions: t.positions, question: topic === 'wear' && color?.colorId ? `${t.name}（今天的顏色元素：${colorLine(color)}）` : t.name })}
+              text={oraclePrompt({ day, deck: t.deck, cards, positions: t.positions, question: topic === 'wear' && color?.colorId ? `${t.name}（今天的顏色元素：${colorLine(color)}）` : topic === 'love' ? `${t.name}（想知道什麼時候容易遇到、對方可能是什麼類型、會因為什麼心動）` : t.name })}
             />
           </div>
         </>
