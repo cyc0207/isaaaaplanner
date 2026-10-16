@@ -1,17 +1,18 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useData } from '../data.jsx';
-import { today, weekStart } from '../lib/date.js';
+import { today } from '../lib/date.js';
 import { TYPES, buildEnglishPreview, dueItems, newItem, practicable, review } from '../lib/english.js';
-import { THEMES, THEME_ORDER } from '../data/decks.js';
+import { THEMES, ALL_THEMES } from '../data/decks.js';
+import { analyze } from '../lib/affix.js';
 import {
-  MODES, MODE_LABEL, cloze, deckProgress, deckToItem, isCorrect, pickMode, pickNewWords, sentencePrompt, weekTheme,
+  MODES, MODE_LABEL, cloze, deckProgress, deckToItem, isCorrect, modeOf, pickMode, pickNewWords, refillPrompt, remainingIn, sentencePrompt, weekTheme,
 } from '../lib/study.js';
 
 // 「今天」：新字 → 複習（翻卡、填空、拼字）→ 每日一句給 GPT 改 → 錯的變成複習卡
 export default function EnglishToday({ goImport }) {
   const { englishItems, englishLog, englishSettings: es, api } = useData();
   const t = today();
-  const mode = es.mode === 5 ? 5 : 15;
+  const mode = modeOf(es);
   const cfg = MODES[mode];
   const theme = weekTheme(es, t);
   const [extra, setExtra] = useState(null);
@@ -25,8 +26,15 @@ export default function EnglishToday({ goImport }) {
   const progress = deckProgress(englishItems);
 
   const learn = () => {
-    api.batch(newWords.map((w) => ({ add: 'englishItems', data: deckToItem(w, t) })));
+    api.batch(
+      newWords.map((w) =>
+        w.pendingId
+          ? { set: `englishItems/${w.pendingId}`, data: { pending: false, introducedOn: t, due: t } }
+          : { add: 'englishItems', data: deckToItem(w, t) },
+      ),
+    );
   };
+  const left = remainingIn(theme, englishItems);
 
   // 新字學完、該複習的也做完：首頁的英文自動打勾
   const finished = !newWords.length && !queue.length && (reviewedToday > 0 || learnedToday.length > 0);
@@ -38,24 +46,25 @@ export default function EnglishToday({ goImport }) {
   const recent = englishItems.filter((it) => it.introducedOn).sort((a, b) => (b.introducedOn || '').localeCompare(a.introducedOn || ''));
   const sentenceWords = [...new Set([...learnedToday, ...englishItems.filter((it) => it.lastReviewed === t && it.type !== 'fix'), ...recent].map((it) => it.front))].slice(0, 6);
 
-  const setTheme = (k) => api.set('settings/english', { theme: k, themeWeek: weekStart(t) });
+  const setTheme = (k) => api.set('settings/english', { fixedTheme: k === 'auto' ? '' : k });
 
   return (
     <div className="eng-today">
       <div className="card today-bar">
         <div className="row between wrap gap">
           <label className="theme-pick">
-            本週主題
-            <select value={theme} onChange={(e) => setTheme(e.target.value)}>
-              {THEME_ORDER.map((k) => (
+            單字來源
+            <select value={THEMES[es.fixedTheme] ? es.fixedTheme : 'auto'} onChange={(e) => setTheme(e.target.value)}>
+              <option value="auto">每週輪替（這週：{THEMES[theme].label}）</option>
+              {ALL_THEMES.map((k) => (
                 <option key={k} value={k}>
-                  {THEMES[k].label}（{progress[k].learned}/{progress[k].total}）
+                  {THEMES[k].label}（已學 {progress[k].learned}/{progress[k].total}）
                 </option>
               ))}
             </select>
           </label>
-          <div className="seg two-mini">
-            {[5, 15].map((m) => (
+          <div className="seg three-mini">
+            {[5, 15, 20].map((m) => (
               <button key={m} className={mode === m ? 'on' : ''} onClick={() => api.set('settings/english', { mode: m })}>
                 {MODES[m].label}
               </button>
@@ -63,30 +72,20 @@ export default function EnglishToday({ goImport }) {
           </div>
         </div>
         <p className="muted small">
-          {mode === 5 ? '忙的時候：3 個新字＋最多 10 張複習。' : '一般日：5 個新字＋最多 30 張複習＋每日一句。'}主題每週輪替生活、職場、金融，也可以自己換。
+          {cfg.newWords} 個新字＋最多 {cfg.reviewCap} 張複習{cfg.sentence ? '＋每日一句' : ''}。雅思、多益、托福卡組由簡單排到難。
         </p>
       </div>
 
       <section className="section">
         <h2>1. 新字</h2>
         {newWords.length ? (
-          <>
-            <ul className="list word-list">
-              {newWords.map((w) => (
-                <li key={w.front} className="word-card">
-                  <WordInfo w={w} />
-                </li>
-              ))}
-            </ul>
-            <button className="btn primary wide" onClick={learn}>
-              看完了，加入複習
-            </button>
-          </>
+          <NewWordDeck key={newWords.map((w) => w.front).join('|')} words={newWords} onDone={learn} />
         ) : (
           <p className="muted small">
-            {learnedToday.length ? `今天的 ${learnedToday.length} 個新字學好了：${learnedToday.map((x) => x.front).join('、')}` : '內建卡組都學完了，可以到「匯入」加新的。'}
+            {learnedToday.length ? `今天的 ${learnedToday.length} 個新字學好了：${learnedToday.map((x) => x.front).join('、')}` : '這個卡組學完了，可以換一個，或請 ChatGPT 補字。'}
           </p>
         )}
+        {left < cfg.newWords * 3 && <Refill theme={theme} left={left} />}
       </section>
 
       <section className="section">
@@ -126,31 +125,6 @@ export default function EnglishToday({ goImport }) {
         </details>
       )}
     </div>
-  );
-}
-
-function WordInfo({ w }) {
-  return (
-    <>
-      <div className="row between">
-        <span className="word-front">{w.front}</span>
-        {w.pos && <span className="muted small">{w.pos}</span>}
-      </div>
-      <div className="word-zh">{w.back}</div>
-      {w.collocation && (
-        <div className="word-line">
-          <span className="word-tag">搭配</span>
-          {w.collocation}
-        </div>
-      )}
-      {w.root && (
-        <div className="word-line">
-          <span className="word-tag">字根</span>
-          {w.root}
-        </div>
-      )}
-      {w.example && <div className="flash-example">{w.example}</div>}
-    </>
   );
 }
 
@@ -388,5 +362,157 @@ function DailySentence({ words, bare }) {
       <h2>3. 每日一句</h2>
       {body}
     </section>
+  );
+}
+
+// 把單字裡的字首、字根、字尾標色
+export function AffixWord({ word }) {
+  const parts = analyze(word);
+  if (!parts.length) return word;
+  const out = [];
+  let i = 0;
+  for (const p of parts) {
+    if (p.start < i) continue;
+    if (p.start > i) out.push(<span key={`t${i}`}>{word.slice(i, p.start)}</span>);
+    out.push(
+      <span key={`a${p.start}`} className={`af af-${p.kind}`}>
+        {word.slice(p.start, p.end)}
+      </span>,
+    );
+    i = p.end;
+  }
+  if (i < word.length) out.push(<span key="end">{word.slice(i)}</span>);
+  return <span className="af-word">{out}</span>;
+}
+
+export function AffixLegend({ word }) {
+  const parts = analyze(word);
+  if (!parts.length) return null;
+  return (
+    <div className="af-legend">
+      {parts.map((p) => (
+        <span key={p.start} className={`af-chip af-${p.kind}`}>
+          {p.kind === 'prefix' ? `${p.part}-` : p.kind === 'suffix' ? `-${p.part}` : p.part} {p.zh}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+// 新字一張一張看：先想意思，點一下翻面
+function NewWordDeck({ words, onDone }) {
+  const [i, setI] = useState(0);
+  const [flipped, setFlipped] = useState(false);
+  const w = words[i];
+  const go = (n) => {
+    setI(n);
+    setFlipped(false);
+  };
+  return (
+    <div className="new-deck">
+      <div className="row between">
+        <span className="muted small">
+          第 <span className="num">{i + 1}</span> / {words.length} 個
+        </span>
+        <div className="deck-dots" aria-hidden="true">
+          {words.map((x, j) => (
+            <i key={x.front} className={j === i ? 'on' : j < i ? 'seen' : ''} />
+          ))}
+        </div>
+      </div>
+      <div className={`flash big-card ${flipped ? 'flipped' : ''}`} onClick={() => setFlipped(!flipped)}>
+        <div className="row between">
+          <span className="chip">{THEMES[w.deck]?.label || (w.tags || [])[0] || '新字'}</span>
+          {w.pos && <span className="muted small">{w.pos}</span>}
+        </div>
+        <p className="flash-front big-word">
+          <AffixWord word={w.front} />
+        </p>
+        <AffixLegend word={w.front} />
+        {flipped ? (
+          <div className="flash-back">
+            <p className="flash-answer">{w.back}</p>
+            {w.collocation && <div className="word-line"><span className="word-tag">搭配</span>{w.collocation}</div>}
+            {w.root && <div className="word-line"><span className="word-tag">字根</span>{w.root}</div>}
+            {w.example && <p className="flash-example">{w.example}</p>}
+          </div>
+        ) : (
+          <p className="muted small flash-tap">先想想意思，點一下翻面</p>
+        )}
+      </div>
+      <div className="row gap">
+        <button className="btn grow" disabled={!i} onClick={() => go(i - 1)}>
+          上一個
+        </button>
+        {i < words.length - 1 ? (
+          <button className="btn primary grow" onClick={() => go(i + 1)}>
+            下一個
+          </button>
+        ) : (
+          <button className="btn primary grow" onClick={onDone}>
+            {words.length} 個都看完了，加入複習
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// 卡組快用完：請 ChatGPT 再補一批，貼回來變成待學新字
+function Refill({ theme, left }) {
+  const { englishItems, api } = useData();
+  const [open, setOpen] = useState(false);
+  const [raw, setRaw] = useState('');
+  const [preview, setPreview] = useState(null);
+  const [msg, setMsg] = useState('');
+  const t = today();
+  const copy = async () => {
+    const p = refillPrompt(theme, englishItems);
+    try {
+      await navigator.clipboard.writeText(p);
+    } catch {
+      window.prompt('複製下面這段', p);
+    }
+    setOpen(true);
+  };
+  const doImport = () => {
+    const rows = preview.rows.filter((r) => r.selected && r.status !== 'error');
+    const ops = rows.map((r) => ({
+      add: 'englishItems',
+      data: { ...newItem({ ...r, tags: r.tags.length ? r.tags : [THEMES[theme].label] }, t), pending: true, deck: theme, introducedOn: '' },
+    }));
+    for (let i = 0; i < ops.length; i += 400) api.batch(ops.slice(i, i + 400));
+    setMsg(`補了 ${rows.length} 個字，之後的每日新字會從這裡出。`);
+    setPreview(null);
+    setRaw('');
+    setOpen(false);
+  };
+  return (
+    <div className="card refill">
+      <p className="small">
+        「{THEMES[theme].label}」還剩 <span className="num">{left}</span> 個字沒學。可以請 ChatGPT 再補 100 個（會避開你已經有的字）。
+      </p>
+      <button className="btn small" onClick={copy}>
+        複製補字 prompt
+      </button>
+      {open && (
+        <>
+          <textarea className="paste" rows={4} value={raw} onChange={(e) => setRaw(e.target.value)} placeholder="把 ChatGPT 的回覆整段貼在這裡" />
+          <button className="btn small" disabled={!raw.trim()} onClick={() => setPreview(buildEnglishPreview(raw, englishItems))}>
+            檢查
+          </button>
+        </>
+      )}
+      {preview?.error && <p className="hint over">{preview.error}</p>}
+      {preview && !preview.error && (
+        <div className="row gap wrap">
+          <span className="small">新的 {preview.rows.filter((r) => r.status === 'ok').length} 個，重複或有錯的會略過。</span>
+          <button className="btn small primary" onClick={doImport}>
+            加入待學
+          </button>
+        </div>
+      )}
+      {msg && <p className="hint ok">{msg}</p>}
+    </div>
   );
 }

@@ -12,7 +12,7 @@
       "destination": "https://isaplanner-489f0.firebaseapp.com/__/firebase/:path*"
     },
     {
-      "source": "/((?!__/).*)",
+      "source": "/((?!__/|api/).*)",
       "destination": "/index.html"
     }
   ],
@@ -27,7 +27,7 @@
       ]
     },
     {
-      "source": "/((?!assets/).*)",
+      "source": "/((?!assets/|api/).*)",
       "headers": [
         {
           "key": "Cache-Control",

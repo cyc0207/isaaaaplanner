@@ -8,13 +8,16 @@ import { gmailLink } from '../lib/gmail.js';
 import { auth } from '../firebase.js';
 import { Sheet } from '../components/ui.jsx';
 import EnglishToday from '../components/EnglishToday.jsx';
+import AffixCards from '../components/AffixCards.jsx';
+import { Reader, Articles, PasteRead } from '../components/Reader.jsx';
 import { StudyNav } from './StudyPage.jsx';
 import { useGmailSync, SyncButton, QueryEditor } from '../components/Gmail.jsx';
 
 const TABS = [
   ['practice', '今天'],
-  ['library', '卡片'],
-  ['letters', '英文信'],
+  ['flash', '字卡'],
+  ['letters', '閱讀'],
+  ['library', '卡片庫'],
   ['import', '匯入'],
 ];
 
@@ -36,7 +39,17 @@ export default function EnglishPage() {
       </div>
       {tab === 'practice' && <EnglishToday goImport={() => setTab('import')} />}
       {tab === 'library' && <Library onEdit={setEditing} />}
-      {tab === 'letters' && <Letters onAdd={setEditing} />}
+      {tab === 'flash' && <AffixCards />}
+      {tab === 'letters' && (
+        <>
+          <Articles onAddCard={setEditing} />
+          <PasteRead onAddCard={setEditing} />
+          <section className="section">
+            <h2>英文信</h2>
+            <Letters onAdd={setEditing} />
+          </section>
+        </>
+      )}
       {tab === 'import' && <Import />}
       {editing && <ItemEditor item={editing} onClose={() => setEditing(null)} />}
     </div>
@@ -100,6 +113,7 @@ function Library({ onEdit }) {
                   <span key={x}>#{x}</span>
                 ))}
                 {practicable(it) && it.reps > 0 && <span>練過 {it.reps} 次</span>}
+                {it.pending && <span className="chip warn">待學</span>}
               </div>
             </div>
           </li>
@@ -261,9 +275,7 @@ function Letters({ onAdd }) {
               在 Gmail 打開
             </a>
           </div>
-          <div className="letter-body" lang="en">
-            {open.body || open.snippet}
-          </div>
+          <Reader text={open.body || open.snippet} onAddCard={onAdd} />
           <div className="letter-actions">
             <button className="btn primary" onMouseDown={(e) => e.preventDefault()} onClick={addSelection}>
               把選起來的字加成卡片
