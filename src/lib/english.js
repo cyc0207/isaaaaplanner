@@ -107,7 +107,8 @@ export function review(item, remembered, t) {
   };
 }
 
-export const practicable = (it) => it.type !== 'link' && it.front;
+// pending：從 ChatGPT 補進來、還沒輪到的新字，不算進複習
+export const practicable = (it) => it.type !== 'link' && it.front && !it.pending;
 
 export function dueItems(items, t) {
   return items

@@ -1,4 +1,4 @@
-import { THEMES, THEME_ORDER } from '../data/decks.js';
+import { THEMES, THEME_ORDER, ALL_THEMES } from '../data/decks.js';
 import { weekStart, diffDays } from './date.js';
 import { itemKey, newItem } from './english.js';
 
@@ -6,12 +6,15 @@ import { itemKey, newItem } from './english.js';
 export const MODES = {
   5: { label: '5 分鐘', newWords: 3, reviewCap: 10, sentence: false },
   15: { label: '15 分鐘', newWords: 5, reviewCap: 30, sentence: true },
+  20: { label: '每天 20 字', newWords: 20, reviewCap: 60, sentence: true },
 };
+export const modeOf = (es) => (MODES[es?.mode] ? Number(es.mode) : 15);
 
 // 每週主題輪替：生活 → 職場 → 金融，從 2026-10-12（週一）那週開始算
 const ANCHOR = '2026-10-12';
 
 export function weekTheme(settings, t) {
+  if (THEMES[settings?.fixedTheme]) return settings.fixedTheme;
   const ws = weekStart(t);
   if (settings?.themeWeek === ws && THEMES[settings.theme]) return settings.theme;
   const n = Math.floor(diffDays(ANCHOR, ws) / 7);
@@ -19,17 +22,35 @@ export function weekTheme(settings, t) {
 }
 
 // 今天要學的新字：先從本週主題拿，拿完了再從其他主題補
+// 本週主題的內建字用完，接著用 ChatGPT 補進來的待學字（pending），最後才從其他主題補
 export function pickNewWords(theme, items, n) {
   const known = new Set(items.map((it) => itemKey(it.type, it.front)));
-  const order = [theme, ...THEME_ORDER.filter((x) => x !== theme)];
   const out = [];
-  for (const k of order) {
-    for (const w of THEMES[k].words) {
-      if (out.length >= n) return out;
-      if (!known.has(itemKey(w.type, w.front))) out.push(w);
+  const take = (list) => {
+    for (const w of list) {
+      if (out.length >= n) return;
+      if (w.pendingId || !known.has(itemKey(w.type, w.front))) out.push(w);
     }
+  };
+  const pending = (k) =>
+    items
+      .filter((it) => it.pending && it.deck === k)
+      .sort((a, b) => (a.createdAtMs || 0) - (b.createdAtMs || 0))
+      .map((it) => ({ ...it, pendingId: it.id }));
+  take(THEMES[theme].words);
+  take(pending(theme));
+  const rest = THEMES[theme].exam ? ALL_THEMES.filter((k) => k !== theme && THEMES[k].exam) : THEME_ORDER.filter((k) => k !== theme);
+  for (const k of rest) {
+    take(THEMES[k].words);
+    take(pending(k));
   }
   return out;
+}
+
+// 本週主題還剩幾個沒學（內建＋待學）
+export function remainingIn(theme, items) {
+  const known = new Set(items.map((it) => itemKey(it.type, it.front)));
+  return THEMES[theme].words.filter((w) => !known.has(itemKey(w.type, w.front))).length + items.filter((it) => it.pending && it.deck === theme).length;
 }
 
 export function deckToItem(w, t) {
@@ -44,7 +65,7 @@ export function deckToItem(w, t) {
 
 export function deckProgress(items) {
   const known = new Set(items.map((it) => itemKey(it.type, it.front)));
-  return Object.fromEntries(THEME_ORDER.map((k) => [k, { learned: THEMES[k].words.filter((w) => known.has(itemKey(w.type, w.front))).length, total: THEMES[k].words.length }]));
+  return Object.fromEntries(ALL_THEMES.map((k) => [k, { learned: THEMES[k].words.filter((w) => known.has(itemKey(w.type, w.front))).length, total: THEMES[k].words.length }]));
 }
 
 // ---- 複習的三種方式 ----
@@ -104,4 +125,24 @@ type,front,back,example,tags,source,note
 - tags 寫 每日一句，source 寫 gpt
 - 欄位裡有逗號或雙引號時，整格用雙引號包起來，裡面的雙引號寫成兩個
 3. 句子完全正確就不用輸出那一列。`;
+}
+
+// 題庫快用完：請 ChatGPT 再給一批，貼回來變成待學新字
+export function refillPrompt(theme, items, n = 100) {
+  const label = THEMES[theme].label;
+  const have = [...new Set([...THEMES[theme].words.map((w) => w.front), ...items.filter((it) => it.deck === theme || (it.tags || []).includes(label)).map((it) => it.front)])];
+  const exam = { ielts: '雅思（IELTS）', toeic: '多益（TOEIC）', toefl: '托福（TOEFL）' }[theme];
+  return `請給我 ${n} 個${exam ? `${exam}常考` : `${label}主題`}的英文單字或片語，從簡單到難排列。
+下面這些我已經有了，不要重複：
+${have.join(', ')}
+
+只輸出一個 code block，第一行固定是表頭：
+type,front,back,example,tags,source,note,collocation,root,pos
+- type：單字寫 word，片語寫 phrase
+- front：英文；back：繁體中文意思；example：一個自然的英文例句
+- tags 寫 ${label}；source 寫 gpt；note 留空
+- collocation：常見搭配詞，用分號分隔，例如 make a decision; a tough decision
+- root：字首、字根、字尾提示，例如 pre-（之前）+ dict（說）；沒有就留空
+- pos：詞性，例如 n.、v.、adj.、phr.
+欄位裡有逗號或雙引號時，整格用雙引號包起來，裡面的雙引號寫成兩個。`;
 }

@@ -2,6 +2,8 @@
 // 每行：英文|詞性|中文|搭配詞（; 分隔）|字根提示|例句
 // 順序就是學習順序：越前面越常用、越先學。
 
+import { IELTS, TOEIC, TOEFL } from './examDecks.js';
+
 const LIFE = `
 afford|v.|負擔得起|can't afford to; afford the time|－|I can't afford to eat out every day this month.
 suggest|v.|建議|suggest that; suggest a place|sug-（下面）+ gest（帶）：從下面帶出想法|Can you suggest a good place for brunch?
@@ -229,5 +231,10 @@ export const THEMES = {
   life: { label: '生活', words: parse(LIFE, 'life') },
   work: { label: '職場', words: parse(WORK, 'work') },
   finance: { label: '金融', words: parse(FINANCE, 'finance') },
+  ielts: { label: '雅思', words: parse(IELTS, 'ielts'), exam: true },
+  toeic: { label: '多益', words: parse(TOEIC, 'toeic'), exam: true },
+  toefl: { label: '托福', words: parse(TOEFL, 'toefl'), exam: true },
 };
+// 每週輪替只用這三個；考試卡組要自己選「固定」
 export const THEME_ORDER = ['life', 'work', 'finance'];
+export const ALL_THEMES = [...THEME_ORDER, 'ielts', 'toeic', 'toefl'];
