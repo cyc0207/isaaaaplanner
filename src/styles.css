@@ -1040,3 +1040,10 @@ label.opt { display: inline-flex; align-items: center; gap: 0.25rem; cursor: poi
 .report .chip { margin: 0 0.25rem 0.25rem 0; }
 .plain-list { margin: 0.4rem 0; padding-left: 1.2rem; display: flex; flex-direction: column; gap: 0.3rem; }
 .coach .list .task { cursor: pointer; align-items: center; }
+.paste-box { display: flex; flex-direction: column; gap: 0.5rem; margin: 0.6rem 0; border-color: var(--teal); box-shadow: 3px 3px 0 var(--teal); }
+.paste-box h3 { margin: 0; }
+.paste-box textarea { width: 100%; box-sizing: border-box; border: 2px solid var(--line); border-radius: 10px; padding: 0.5rem; font: inherit; background: var(--surface-solid); color: var(--text); }
+.paste-box .btn.small { align-self: flex-start; }
+.paste-box a.btn { display: inline-flex; align-items: center; text-decoration: none; }
+.paste-steps { margin: 0; padding-left: 1.2rem; }
+.pasted { white-space: pre-wrap; overflow-wrap: anywhere; margin: 0.4rem 0 0; }

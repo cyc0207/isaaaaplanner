@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { generateKeyPairSync, sign } from 'node:crypto';
 import {
-  countFillers, recentContext, answersSinceFeedback, feedbackDue, speakingSec, progressStats, normFeedback, normReport, fixToCard, FEEDBACK_EVERY,
+  countFillers, recentContext, nextQuestion, feedbackPrompt, reportPrompt, parsePasted, QUESTIONS, FOLLOW_UPS, answersSinceFeedback, feedbackDue, speakingSec, progressStats, normFeedback, normReport, fixToCard, FEEDBACK_EVERY,
 } from '../src/lib/speak.js';
 import { buildRequest, SYSTEM } from '../src/lib/coachPrompts.js';
 import { verifyIdToken, allowedEmail, _setKeysForTest } from '../api/_auth.js';
@@ -82,6 +82,39 @@ describe('整理 AI 回饋', () => {
   it('修正句存成改錯卡', () => {
     const c = fixToCard({ original: 'I feel very achievement.', corrected: 'I felt a sense of achievement.', why: '名詞', type: 'word_form' });
     expect(c).toMatchObject({ type: 'fix', front: 'I feel very achievement.', back: 'I felt a sense of achievement.', tags: ['口說', '詞性'], source: 'coach' });
+  });
+});
+
+describe('不接 AI：出題、複製、貼回', () => {
+  it('第一題來自主題題庫，回答單數次追問、雙數次換題，不重複', () => {
+    const q1 = nextQuestion('career', []);
+    expect(QUESTIONS.career).toContain(q1);
+    const t1 = [ai(q1), me('a')];
+    expect(FOLLOW_UPS).toContain(nextQuestion('career', t1));
+    const t2 = [...t1, ai(nextQuestion('career', t1)), me('b')];
+    const q3 = nextQuestion('career', t2);
+    expect(QUESTIONS.career).toContain(q3);
+    expect(q3).not.toBe(q1);
+  });
+  it('複製的指令帶回答、不評發音、要 json', () => {
+    const p = feedbackPrompt('work', ['I go to meeting yesterday', 'It was very achievement']);
+    expect(p).toContain('1. I go to meeting yesterday');
+    expect(p).toContain('不要評論發音');
+    expect(p).toContain('```json');
+    expect(reportPrompt('work', ['x'], { actually: 2 })).toContain('actually ×2');
+  });
+  it('貼回來有 json 就整理成修正', () => {
+    const pasted = `好的，以下是回饋……\n\n\`\`\`json\n${JSON.stringify({ understood: '你昨天開會', fixes: [{ original: 'I go to meeting yesterday', corrected: 'I went to a meeting yesterday', why: '過去式', type: 'tense' }], natural: 'I went to a meeting yesterday.', retry: { pattern: 'I went to ...', prompt: 'Where did you go last weekend?' } })}\n\`\`\``;
+    const r = parsePasted(pasted);
+    expect(r.parsed).toBe(true);
+    expect(r.fixes[0].type).toBe('tense');
+    expect(r.raw).toBe('');
+  });
+  it('沒有 json 就存原文', () => {
+    const r = parsePasted('1. 我聽懂了什麼：你昨天開會。');
+    expect(r.parsed).toBe(false);
+    expect(r.raw).toContain('你昨天開會');
+    expect(JSON.stringify(r)).not.toContain('undefined');
   });
 });
 
@@ -189,6 +222,16 @@ describe('/api/coach', () => {
     return res;
   };
 
+  it('GET 只回答有沒有設定，不需登入', async () => {
+    const { default: handler } = await import('../api/coach.js');
+    const res = mockRes();
+    await handler({ method: 'GET', headers: {} }, res);
+    expect(res.body).toEqual({ ready: true });
+    delete process.env.COACH_ALLOWED_EMAILS;
+    const res2 = mockRes();
+    await handler({ method: 'GET', headers: {} }, res2);
+    expect(res2.body).toEqual({ ready: false });
+  });
   it('沒設 Key 時說明要怎麼設', async () => {
     delete process.env.ANTHROPIC_API_KEY;
     const res = await call({ mode: 'chat' });

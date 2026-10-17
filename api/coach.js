@@ -40,6 +40,8 @@ async function callModel(req, withFallback) {
 
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
+  // GET：只回答有沒有設定好，網站用來決定要不要接 AI（沒設定就用「複製給 Claude」）
+  if (req.method === 'GET') return res.status(200).json({ ready: !!(process.env.ANTHROPIC_API_KEY && process.env.COACH_ALLOWED_EMAILS) });
   if (req.method !== 'POST') return res.status(405).json({ error: '只接受 POST' });
 
   if (!process.env.ANTHROPIC_API_KEY) {

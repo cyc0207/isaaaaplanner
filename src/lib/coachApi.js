@@ -31,3 +31,13 @@ export async function callCoach(body) {
   if (json.error) throw new CoachError(json.error, !!json.setup);
   return json.data;
 }
+
+// 伺服器有沒有設定 AI（ANTHROPIC_API_KEY）。沒設定、本機開發或連不上都當作沒有
+let readyPromise;
+export function coachReady() {
+  readyPromise ||= fetch('/api/coach')
+    .then((r) => r.json())
+    .then((j) => j.ready === true)
+    .catch(() => false);
+  return readyPromise;
+}
