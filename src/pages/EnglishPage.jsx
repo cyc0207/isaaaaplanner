@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useData } from '../data.jsx';
 import { today } from '../lib/date.js';
 import {
@@ -9,12 +10,14 @@ import { auth } from '../firebase.js';
 import { Sheet } from '../components/ui.jsx';
 import EnglishToday from '../components/EnglishToday.jsx';
 import AffixCards from '../components/AffixCards.jsx';
+import SpeakCoach from '../components/SpeakCoach.jsx';
 import { Reader, Articles, PasteRead } from '../components/Reader.jsx';
 import { StudyNav } from './StudyPage.jsx';
 import { useGmailSync, SyncButton, QueryEditor } from '../components/Gmail.jsx';
 
 const TABS = [
   ['practice', '今天'],
+  ['speak', '口說'],
   ['flash', '字卡'],
   ['letters', '閱讀'],
   ['library', '卡片庫'],
@@ -22,7 +25,9 @@ const TABS = [
 ];
 
 export default function EnglishPage() {
-  const [tab, setTab] = useState('practice');
+  // /english?tab=speak&topic=work 直接開口說（topic 有給就直接開始聊）
+  const [params] = useSearchParams();
+  const [tab, setTab] = useState(() => (TABS.some(([k]) => k === params.get('tab')) ? params.get('tab') : 'practice'));
   const [editing, setEditing] = useState(null);
   return (
     <div className="page">
@@ -38,6 +43,7 @@ export default function EnglishPage() {
         ))}
       </div>
       {tab === 'practice' && <EnglishToday goImport={() => setTab('import')} />}
+      {tab === 'speak' && <SpeakCoach startTopic={params.get('topic')} />}
       {tab === 'library' && <Library onEdit={setEditing} />}
       {tab === 'flash' && <AffixCards />}
       {tab === 'letters' && (
