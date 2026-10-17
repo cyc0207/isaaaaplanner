@@ -990,3 +990,53 @@ details.section > summary { cursor: pointer; padding: 0.3rem 0; }
 .articles { margin-bottom: 0.4rem; }
 .af-word { white-space: nowrap; }
 .topics-card .btn { white-space: nowrap; flex: none; }
+
+/* ---- AI 口說教練 ---- */
+.coach-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.7rem; margin-bottom: 0.8rem; }
+.coach-entry { display: flex; flex-direction: column; gap: 0.5rem; text-align: left; font: inherit; color: inherit; cursor: pointer; }
+.coach-entry.on { grid-column: 1 / -1; background: var(--warn-soft); }
+.coach-entry.later { cursor: default; opacity: 0.6; box-shadow: none; }
+.coach-entry .chip { align-self: flex-start; }
+.coach-entry .btn.big { margin-top: 0.2rem; }
+.coach-entry-head { display: flex; flex-direction: column; }
+.coach-entry-head strong { font-size: 1.05rem; }
+.coach-entry .seg.four button { padding: 0.5rem 0.2rem; font-size: 0.88rem; }
+.talk-head { margin-bottom: 0.6rem; }
+.talk-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.6rem; }
+.talk-item { display: flex; flex-direction: column; gap: 0.6rem; }
+.bubble { max-width: 86%; padding: 0.6rem 0.8rem; border: 2px solid var(--line); border-radius: 14px; box-shadow: 2px 2px 0 var(--shadow); }
+.bubble p { margin: 0; overflow-wrap: anywhere; }
+.bubble.ai { align-self: flex-start; background: var(--surface-solid); border-bottom-left-radius: 4px; }
+.bubble.me { align-self: flex-end; background: var(--accent-soft); border-bottom-right-radius: 4px; }
+.bubble-help { margin-top: 0.4rem !important; padding-top: 0.4rem; border-top: 1.5px dashed var(--soft-line); color: var(--teal); font-size: 0.92rem; }
+.bubble-meta { display: block; color: var(--muted); margin-top: 0.2rem; text-align: right; }
+.talk-busy { margin: 0.6rem 0; }
+.composer { position: sticky; bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom) + 8px); margin-top: 0.8rem; display: flex; flex-direction: column; gap: 0.5rem; z-index: 2; }
+.composer textarea { width: 100%; box-sizing: border-box; border: 2px solid var(--line); border-radius: 10px; padding: 0.5rem; font: inherit; background: var(--surface-solid); color: var(--text); resize: vertical; }
+.composer-actions .btn { min-height: 46px; flex: 1; }
+.composer-actions .btn.small { min-height: 34px; }
+.btn.mic { flex: 1.2; background: var(--teal); color: #fff8ec; }
+.btn.mic.on { background: var(--mustard); color: #2b2118; }
+.composer-opts { color: var(--muted); }
+.composer-opts select { font-size: 0.85rem; margin-left: 0.3rem; padding: 0.15rem; width: auto; }
+label.opt { display: inline-flex; align-items: center; gap: 0.25rem; cursor: pointer; }
+.retry-banner { background: var(--warn-soft); border: 2px dashed var(--line); border-radius: 10px; padding: 0.4rem 0.6rem; }
+.feedback { background: var(--surface-solid); border-color: var(--teal); box-shadow: 3px 3px 0 var(--teal); }
+.feedback h3 { margin-top: 0; }
+.fb-part { margin-top: 0.7rem; }
+.fb-part p { margin: 0.2rem 0 0.4rem; }
+.fb-label { font-weight: 900; font-size: 0.88rem; color: var(--teal); }
+.fix-list { list-style: none; margin: 0.3rem 0 0; padding: 0; display: flex; flex-direction: column; gap: 0.5rem; }
+.fix-list li { border-left: 4px solid var(--mustard); padding-left: 0.6rem; display: flex; flex-direction: column; gap: 0.15rem; }
+.fix-orig { text-decoration: line-through; text-decoration-color: var(--accent); color: var(--muted); }
+.fix-new { font-weight: 700; }
+.natural { line-height: 1.6; }
+.coach-error { border-color: var(--over); margin: 0.6rem 0; }
+.coach-error p { margin: 0; color: var(--over); font-weight: 700; }
+.coach-error ol { margin: 0.5rem 0 0; padding-left: 1.2rem; }
+.report-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.4rem; text-align: center; margin-bottom: 0.5rem; }
+.report-stats > div { display: flex; flex-direction: column; }
+.report-stats .num.big { font-size: 2rem; line-height: 1; }
+.report .chip { margin: 0 0.25rem 0.25rem 0; }
+.plain-list { margin: 0.4rem 0; padding-left: 1.2rem; display: flex; flex-direction: column; gap: 0.3rem; }
+.coach .list .task { cursor: pointer; align-items: center; }
