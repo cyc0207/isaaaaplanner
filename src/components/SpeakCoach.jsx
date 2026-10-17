@@ -5,11 +5,11 @@ import { useData } from '../data.jsx';
 import { today, shortLabel } from '../lib/date.js';
 import { itemKey, newItem } from '../lib/english.js';
 import { logError } from '../lib/errlog.js';
-import { callCoach } from '../lib/coachApi.js';
+import { callCoach, coachReady } from '../lib/coachApi.js';
 import { canListen, canSpeak, speak, startListening, stopSpeaking } from '../lib/speech.js';
 import {
-  TOPICS, ERROR_TYPES, answersSinceFeedback, countFillers, feedbackDue, fixToCard, myTurns, normFeedback, normReport,
-  progressStats, recentContext, sentenceToCard, speakingSec,
+  TOPICS, ERROR_TYPES, answersSinceFeedback, countFillers, feedbackDue, feedbackPrompt, fixToCard, myTurns, nextQuestion, normFeedback,
+  normReport, parsePasted, progressStats, recentContext, reportPrompt, sentenceToCard, speakingSec, FEEDBACK_EVERY,
 } from '../lib/speak.js';
 import { Sheet } from './ui.jsx';
 
@@ -172,6 +172,10 @@ function FreeTalk({ topic, resume, onDone }) {
   const [retry, setRetry] = useState(null);
   const [report, setReport] = useState(null);
   const [saved, setSaved] = useState(() => new Set());
+  // ai：伺服器有設定 AI 才接；沒有就由網站出題，回饋複製給 Claude 再貼回來
+  const [ai, setAi] = useState(null);
+  const [askFb, setAskFb] = useState(false);
+  const [skippedAt, setSkippedAt] = useState(0); // 按「先繼續聊」時回答了幾次，再 4 次才提醒
   const listener = useRef(null);
   const voiceSec = useRef(0);
   const endRef = useRef(null);
@@ -199,15 +203,18 @@ function FreeTalk({ topic, resume, onDone }) {
   useEffect(() => {
     let cancelled = false;
     (async () => {
+      const useAi = await coachReady();
+      if (cancelled) return;
+      setAi(useAi);
       if (resume) {
         setS(resume);
         return;
       }
-      setBusy('AI 想一個問題…');
+      if (useAi) setBusy('AI 想一個問題…');
       try {
-        const data = await callCoach({ mode: 'chat', topic });
+        const text = useAi ? (await callCoach({ mode: 'chat', topic })).reply : nextQuestion(topic, []);
         if (cancelled) return;
-        const first = { role: 'ai', text: data.reply || 'What have you been up to today?', at: Date.now(), help: '' };
+        const first = { role: 'ai', text: text || 'What have you been up to today?', at: Date.now(), help: '' };
         const base = {
           mode: 'free', topic, date: today(), startedAtMs: Date.now(), endedAtMs: 0, speakingSec: 0,
           turns: [first], summary: '', feedbacks: [], report: null, fillers: {}, pronunciation: 'not_assessed',
@@ -283,6 +290,13 @@ function FreeTalk({ topic, resume, onDone }) {
     let cur = { ...s, turns: [...s.turns, mine] };
     cur.speakingSec = speakingSec(cur.turns);
     persist(cur);
+    if (!ai) {
+      // 不接 AI：網站接著問（追問或換題），每 4 次回答提醒複製給 Claude 看回饋
+      const q = { role: 'ai', text: nextQuestion(topic, cur.turns), help: '', at: Date.now() };
+      persist({ ...sRef.current, turns: [...sRef.current.turns, q] });
+      say(q.text);
+      return;
+    }
     setBusy('AI 在聽…');
     try {
       const data = await callCoach({ mode: 'chat', topic, summary: s.summary, context, answer: text });
@@ -311,10 +325,15 @@ function FreeTalk({ topic, resume, onDone }) {
     const fillers = countFillers(answers);
     const ended = { ...cur, endedAtMs: Date.now(), fillers, speakingSec: speakingSec(cur.turns) };
     persist(ended);
+    setAskFb(false);
     // 首頁的英文打勾
     const t = today();
     const minutes = Math.max(1, Math.round((ended.endedAtMs - ended.startedAtMs) / 60000));
     if (!englishLog[t]) api.set(`englishLog/${t}`, { minutes, note: `口說 Free Talk ${answers.length} 次回答` });
+    if (!ai) {
+      setReport(true);
+      return;
+    }
     setBusy('產生報告中…');
     try {
       const data = normReport(await callCoach({ mode: 'report', topic, summary: cur.summary, answers, fillers }));
@@ -340,7 +359,7 @@ function FreeTalk({ topic, resume, onDone }) {
   if (report && s) {
     return (
       <div className="coach">
-        <ReportView s={s} save={save} isSaved={isSaved} />
+        <ReportView s={s} save={save} isSaved={isSaved} onReport={(r) => persist({ ...sRef.current, report: { ...r, at: Date.now() } })} />
         {err && <ErrorBox err={err} />}
         <button className="btn primary big" onClick={onDone}>
           完成
@@ -350,6 +369,8 @@ function FreeTalk({ topic, resume, onDone }) {
   }
 
   const answers = myTurns(s?.turns).length;
+  // 不接 AI 時，該看回饋就先停下來貼回饋（輸入框收起來，按「先繼續聊」才回來）
+  const pasting = ai === false && !!s && (askFb || (feedbackDue(s.turns, s.feedbacks) && answers >= skippedAt + FEEDBACK_EVERY));
   let fbIndex = 0;
   return (
     <div className="coach talk">
@@ -373,8 +394,29 @@ function FreeTalk({ topic, resume, onDone }) {
       </ol>
       {busy && <p className="muted talk-busy">{busy}</p>}
       {err && <ErrorBox err={err} />}
+      {pasting && (
+        <PasteBox
+          title={`回答 ${answersSinceFeedback(s.turns, s.feedbacks).length} 次了，拿去給 Claude 看回饋`}
+          prompt={feedbackPrompt(topic, answersSinceFeedback(s.turns, s.feedbacks).map((t) => t.text))}
+          kind="feedback"
+          onSave={(f) => {
+            const latest = sRef.current;
+            persist({ ...latest, feedbacks: [...latest.feedbacks, { ...f, afterTurn: latest.turns.length - 1, at: Date.now() }] });
+            setAskFb(false);
+          }}
+          onLater={() => {
+            setAskFb(false);
+            setSkippedAt(myTurns(s.turns).length);
+          }}
+        >
+          <button className="link small" onClick={finish}>
+            不聊了，結束並看報告
+          </button>
+        </PasteBox>
+      )}
       <div ref={endRef} />
 
+      {!pasting && (
       <div className="composer card">
         {retry && (
           <div className="retry-banner">
@@ -404,7 +446,7 @@ function FreeTalk({ topic, resume, onDone }) {
           </button>
         </div>
         <div className="row gap composer-actions">
-          <button className="btn small" disabled={!!busy || !answersSinceFeedback(s?.turns, s?.feedbacks).length} onClick={() => getFeedback(s)}>
+          <button className="btn small" disabled={!!busy || !answersSinceFeedback(s?.turns, s?.feedbacks).length} onClick={() => (ai ? getFeedback(s) : setAskFb(true))}>
             看回饋
           </button>
           <button className="btn small" disabled={busy === '產生報告中…'} onClick={finish}>
@@ -456,6 +498,7 @@ function FreeTalk({ topic, resume, onDone }) {
           )}
         </div>
       </div>
+      )}
     </div>
   );
 }
@@ -496,6 +539,14 @@ function SaveBtn({ card, save, isSaved }) {
 }
 
 function FeedbackCard({ f, save, isSaved, onRetry, rate, title = '回饋' }) {
+  if (f.raw && !f.parsed && !f.understood) {
+    return (
+      <div className="card feedback">
+        <h3>{title}</h3>
+        <p className="pasted">{f.raw}</p>
+      </div>
+    );
+  }
   return (
     <div className="card feedback">
       <h3>{title}</h3>
@@ -556,7 +607,7 @@ function FeedbackCard({ f, save, isSaved, onRetry, rate, title = '回饋' }) {
   );
 }
 
-function ReportView({ s, save, isSaved }) {
+function ReportView({ s, save, isSaved, onReport }) {
   const r = s.report;
   const fillers = Object.entries(s.fillers || {});
   const answers = myTurns(s.turns);
@@ -596,7 +647,15 @@ function ReportView({ s, save, isSaved }) {
           )}
         </div>
       </section>
-      {!r && <p className="muted">報告沒有產生成功，對話紀錄已經存好，可以在「學習紀錄」看。</p>}
+      {!r && onReport && (
+        <PasteBox
+          title="拿去給 Claude 寫報告"
+          prompt={reportPrompt(s.topic, answers.map((t) => t.text), s.fillers)}
+          kind="report"
+          onSave={onReport}
+        />
+      )}
+      {!r && !onReport && <p className="muted">這次沒有報告。</p>}
       {r?.strengths?.length > 0 && (
         <section className="section">
           <h2>這次說得清楚的</h2>
@@ -730,7 +789,7 @@ function SessionSheet({ s, onClose }) {
   const { api } = useData();
   return (
     <Sheet title={`${shortLabel(s.date)} ${TOPICS[s.topic]?.label || ''}`} onClose={onClose}>
-      {s.report && <ReportView s={s} save={null} />}
+      <ReportView s={s} save={null} onReport={s.report ? null : (r) => api.set(`speakSessions/${s.id}`, { report: { ...r, at: Date.now() } })} />
       <h3>對話</h3>
       <ol className="talk-list">
         {(s.turns || []).map((t, i) => (
@@ -756,5 +815,53 @@ function SessionSheet({ s, onClose }) {
         刪除這次紀錄
       </button>
     </Sheet>
+  );
+}
+
+// 不接 AI 時：複製指令＋逐字稿給 Claude，再把回覆貼回來存
+function PasteBox({ title, prompt, kind, onSave, onLater, children }) {
+  const [copied, setCopied] = useState(false);
+  const [text, setText] = useState('');
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(prompt);
+      setCopied(true);
+    } catch {
+      window.prompt('複製下面這段，貼給 Claude', prompt);
+    }
+  };
+  const submit = () => {
+    const r = parsePasted(text, kind);
+    if (!r.parsed && !r.raw.trim()) return;
+    onSave(r);
+    setText('');
+  };
+  return (
+    <div className="card paste-box">
+      <h3>{title}</h3>
+      <ol className="small paste-steps">
+        <li>按「複製」，貼到 Claude App 或網頁送出</li>
+        <li>把 Claude 的整段回覆複製，貼在下面按「存起來」</li>
+      </ol>
+      <div className="row gap">
+        <button className="btn small primary" onClick={copy}>
+          {copied ? '已複製' : '複製指令和逐字稿'}
+        </button>
+        <a className="btn small" href="https://claude.ai/new" target="_blank" rel="noreferrer">
+          打開 Claude
+        </a>
+        {onLater && (
+          <button className="link small" onClick={onLater}>
+            先繼續聊
+          </button>
+        )}
+      </div>
+      <textarea rows={4} value={text} onChange={(e) => setText(e.target.value)} placeholder="把 Claude 的回覆貼在這裡" />
+      <button className="btn small" onClick={submit} disabled={!text.trim()}>
+        存起來
+      </button>
+      {children}
+      <p className="small muted">Claude 回覆最後有一段 json，網站就能整理出修正句讓你收藏；沒有的話會存原文。</p>
+    </div>
   );
 }
