@@ -114,3 +114,11 @@ export function clearTodayOverride() {
 export function today() {
   return getTodayOverride() || toStr(new Date());
 }
+
+// 台灣的日曆日期：不管手機設成哪個時區、UTC 有沒有跨日，都用台灣的今天
+export function taipeiToday(now = new Date()) {
+  return (
+    getTodayOverride() ||
+    new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Taipei', year: 'numeric', month: '2-digit', day: '2-digit' }).format(now)
+  );
+}
