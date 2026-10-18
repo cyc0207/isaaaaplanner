@@ -9,6 +9,7 @@ import { gmailLink } from '../lib/gmail.js';
 import { auth } from '../firebase.js';
 import { Sheet } from '../components/ui.jsx';
 import EnglishToday from '../components/EnglishToday.jsx';
+import ToeicCard from '../components/ToeicPlan.jsx';
 import AffixCards from '../components/AffixCards.jsx';
 import SpeakCoach from '../components/SpeakCoach.jsx';
 import { Reader, Articles, PasteRead } from '../components/Reader.jsx';
@@ -25,7 +26,7 @@ const TABS = [
 ];
 
 export default function EnglishPage() {
-  // /english?tab=speak&topic=work 直接開口說（topic 有給就直接開始聊）
+  // /english?tab=speak&topic=work 直接開口說（topic 有給就直接開始聊）；/english?toeic=1 直接打開 TOEIC 閱讀 12 回進度
   const [params] = useSearchParams();
   const [tab, setTab] = useState(() => (TABS.some(([k]) => k === params.get('tab')) ? params.get('tab') : 'practice'));
   const [editing, setEditing] = useState(null);
@@ -42,7 +43,12 @@ export default function EnglishPage() {
           </button>
         ))}
       </div>
-      {tab === 'practice' && <EnglishToday goImport={() => setTab('import')} />}
+      {tab === 'practice' && (
+        <>
+          <ToeicCard openOnLoad={params.get('toeic') === '1'} />
+          <EnglishToday goImport={() => setTab('import')} />
+        </>
+      )}
       {tab === 'speak' && <SpeakCoach startTopic={params.get('topic')} />}
       {tab === 'library' && <Library onEdit={setEditing} />}
       {tab === 'flash' && <AffixCards />}

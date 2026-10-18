@@ -1048,6 +1048,69 @@ label.opt { display: inline-flex; align-items: center; gap: 0.25rem; cursor: poi
 .paste-steps { margin: 0; padding-left: 1.2rem; }
 .pasted { white-space: pre-wrap; overflow-wrap: anywhere; margin: 0.4rem 0 0; }
 
+/* TOEIC 閱讀 12 週：英文 › 今天 最上面 */
+.toeic-card { display: flex; flex-direction: column; gap: 0.6rem; margin-bottom: 1rem; background: #d6e8e2; }
+@media (prefers-color-scheme: dark) { .toeic-card { background: #1f3a38; } }
+.toeic-today { background: var(--surface-solid); border: 2px solid var(--line); border-radius: 12px; padding: 0.5rem 0.7rem; }
+.toeic-today.done { background: var(--warn-soft); }
+.toeic-today p { margin: 0.1rem 0 0; }
+.toeic-title { font-size: 1.1rem; font-weight: 700; }
+.toeic-stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.4rem; }
+.toeic-stats > div { background: var(--surface-solid); border: 2px solid var(--line); border-radius: 10px; padding: 0.35rem 0.55rem; font-size: 0.85rem; }
+.toeic-stats .big { font-size: 1.5rem; line-height: 1.05; font-weight: 700; }
+.toeic-stats .label { display: block; font-size: 0.75rem; color: var(--muted); font-weight: 700; }
+.back-btn { margin-bottom: 0.6rem; }
+.toeic-round { cursor: pointer; }
+.toeic-no { flex: none; width: 2rem; height: 2rem; display: grid; place-items: center; border: 2px solid var(--line); border-radius: 999px; font-size: 1.2rem; background: var(--surface-2); }
+.toeic-round.st-answered .toeic-no { background: var(--mustard); color: #2b2118; }
+.toeic-round.st-reviewed .toeic-no { background: var(--teal); color: #fff8ec; }
+.toeic-round.st-partial .toeic-no { background: var(--accent-soft); }
+.toeic-round-view h3 { margin-top: 1.2rem; }
+.toeic-form label.inline, .toeic-mistake-edit label.inline { display: flex; align-items: center; gap: 0.4rem; font-size: 0.92rem; }
+.toeic-parts { display: flex; flex-direction: column; gap: 0.35rem; }
+.toeic-part { display: grid; grid-template-columns: 4.2rem 1fr auto; grid-template-areas: 'name range pct' 'done score score'; align-items: center; gap: 0.25rem 0.5rem; padding: 0.45rem 0.6rem; border: 2px solid var(--line); border-radius: 10px; background: var(--surface-solid); }
+.toeic-part > .strong { grid-area: name; }
+.toeic-part > .muted { grid-area: range; }
+.toeic-part > .pct { grid-area: pct; font-size: 1.3rem; }
+.toeic-part > label:nth-of-type(1) { grid-area: done; }
+.toeic-part > .score-in { grid-area: score; justify-self: end; }
+.toeic-part.total { grid-template-areas: 'name range pct'; background: var(--warn-soft); }
+.score-in input { width: 3.6rem; text-align: center; font-family: var(--pixel); font-size: 1.3rem; padding: 0.15rem; }
+.toeic-field { display: flex; flex-direction: column; gap: 0.3rem; }
+.toeic-field textarea { width: 100%; }
+.toeic-steps { list-style: none; margin: 0.4rem 0; padding: 0; display: flex; flex-direction: column; gap: 0.35rem; }
+.toeic-steps li { display: flex; align-items: center; gap: 0.5rem; font-size: 0.92rem; }
+.toeic-steps li.done > .grow { color: var(--muted); }
+.step-box { flex: none; width: 1.4rem; height: 1.4rem; display: grid; place-items: center; border: 2px solid var(--line); border-radius: 6px; background: var(--surface-solid); font-weight: 700; }
+.toeic-steps li.done .step-box { background: var(--teal); color: #fff8ec; }
+.toeic-add { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0.5rem 0; }
+.toeic-add input[inputmode] { width: 4.5rem; }
+.toeic-mistake { list-style: none; background: var(--surface-solid); border: 2px solid var(--line); border-radius: 12px; padding: 0.5rem 0.6rem; }
+.toeic-mistake > .row { cursor: pointer; }
+.toeic-mistake.st-error { border-style: dashed; }
+.toeic-mistake select { margin-top: 0.4rem; }
+.toeic-mistake-edit { display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.5rem; padding-top: 0.5rem; border-top: 2px dashed var(--soft-line); }
+.toeic-mistake-edit > label:not(.inline) { display: flex; flex-direction: column; gap: 0.2rem; font-size: 0.85rem; color: var(--muted); }
+.toeic-mistake-edit textarea { width: 100%; }
+.ai-note { background: var(--surface-2); border-radius: 10px; padding: 0.4rem 0.6rem; }
+.ai-note p { margin: 0.2rem 0; }
+.toeic-mistakes, .toeic-review { margin-top: 0.4rem; }
+.toeic-ai { margin: 1rem 0; }
+.toeic-ai summary { cursor: pointer; padding: 0.3rem 0; }
+.toeic-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+.toeic-table th, .toeic-table td { padding: 0.3rem 0.35rem; text-align: center; border-bottom: 1.5px solid var(--soft-line); }
+.toeic-table td:nth-child(2) { min-width: 5.5rem; text-align: left; }
+.toeic-table td:nth-child(5) { min-width: 0; }
+.toeic-table th { white-space: nowrap; }
+.pct-bar { position: relative; display: block; height: 1.3rem; border: 2px solid var(--line); border-radius: 999px; background: var(--surface-solid); overflow: hidden; }
+.pct-bar i { position: absolute; inset: 0 auto 0 0; background: var(--mustard); }
+.pct-bar b { position: relative; padding-left: 0.4rem; font-weight: 400; }
+.toeic-types li { display: grid; grid-template-columns: 8.5rem 1fr 1.6rem; align-items: center; gap: 0.5rem; font-size: 0.9rem; }
+.type-track { height: 0.9rem; }
+.type-bar { display: block; height: 100%; background: var(--accent); border: 2px solid var(--line); border-radius: 999px; }
+.toeic-weekday { display: flex; flex-direction: column; gap: 0.6rem; }
+.toeic-weekday .card p { margin: 0.2rem 0; }
+.toeic-weekday textarea { width: 100%; }
 /* 我的英文錯誤庫（英文 › 口說） */
 .bank { display: flex; flex-direction: column; gap: 0.6rem; }
 .bank-title { margin: 0.2rem 0; font-size: 1.2rem; }
