@@ -1047,3 +1047,13 @@ label.opt { display: inline-flex; align-items: center; gap: 0.25rem; cursor: poi
 .paste-box a.btn { display: inline-flex; align-items: center; text-decoration: none; }
 .paste-steps { margin: 0; padding-left: 1.2rem; }
 .pasted { white-space: pre-wrap; overflow-wrap: anywhere; margin: 0.4rem 0 0; }
+
+/* Sunday English Discovery */
+.discovery summary .muted { margin-left: 0.3rem; font-weight: 400; }
+.disc-title { font-family: 'Noto Serif TC', var(--sans); font-size: 1.2rem; font-weight: 700; margin: 0.4rem 0 0.1rem; }
+.disc-btns { margin: 0.6rem 0 0.3rem; }
+.disc-btns a.btn { text-decoration: none; }
+.disc-form { display: grid; gap: 0.5rem; margin-top: 0.6rem; }
+.disc-form label { display: grid; gap: 0.3rem; font-size: 0.9rem; }
+.disc-pool { display: grid; gap: 0.4rem; margin-top: 0.5rem; }
+.disc-example { font-size: 0.75rem; white-space: pre-wrap; overflow-wrap: anywhere; background: var(--surface-2); padding: 0.5rem; border-radius: 8px; }
