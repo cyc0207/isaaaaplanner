@@ -22,12 +22,14 @@ export const ERROR_CATEGORIES = {
 export const PHRASE_TAGS = ['Daily Conversation', 'Career', 'BA / PM', 'Technology', 'Personal Reflection', 'Interview'];
 
 // 證據等級：只有 transcript（逐字稿裡找得到）和 userReported（你自己列的）會算進出現次數
+// excerpt：ChatGPT 交換格式標明是逐字稿逐句摘錄（verifiedOriginal），但沒附完整逐字稿可以比對
 export const EVIDENCE = {
   transcript: '逐字稿裡的原句',
+  excerpt: '逐字稿摘錄',
   userReported: '你自己列的',
   unverified: '未核對（逐字稿裡找不到）',
 };
-export const counts = (o) => o.evidence === 'transcript' || o.evidence === 'userReported';
+export const counts = (o) => o.evidence === 'transcript' || o.evidence === 'excerpt' || o.evidence === 'userReported';
 
 export const STATUS = { new: '新的', learning: '學習中', mastered: '已學會' };
 // 盒子 4 以上（下次 14 天後）算學會
@@ -68,7 +70,9 @@ export function hash(str) {
 export const sessionKey = (s) => (s.sourceId ? `id:${norm(s.sourceId)}` : `${s.date}|${norm(s.topic)}|${s.round ?? ''}`);
 export const sessionDocId = (s) => `imp-${hash(sessionKey(s))}`;
 // 錯誤的去重鍵：有給 pattern（例如 That's meaning → That means）就用它，沒有就用「原句→修正」
-export const errorKeyOf = (e) => (e.pattern ? `p:${norm(e.pattern)}` : `s:${norm(e.verifiedOriginal)}→${norm(e.suggestedCorrection)}`);
+// recurrenceGroup（例如 that_means）優先：之後別次練習同一組的錯誤會加到同一張卡
+export const errorKeyOf = (e) =>
+  e.recurrenceGroup ? `g:${norm(e.recurrenceGroup)}` : e.pattern ? `p:${norm(e.pattern)}` : `s:${norm(e.verifiedOriginal)}→${norm(e.suggestedCorrection)}`;
 export const errorDocId = (key) => `err-${hash(key)}`;
 export const phraseKeyOf = (p) => norm(p);
 export const phraseDocId = (key) => `phr-${hash(key)}`;
@@ -92,11 +96,59 @@ export function parseImportText(text) {
 
 const strList = (v, n = 10) => (Array.isArray(v) ? v : v ? [v] : []).map((x) => clip(typeof x === 'string' ? x : JSON.stringify(x), 600)).filter(Boolean).slice(0, n);
 
+// ---- 1b. ChatGPT 交換格式（schemaVersion "1.0.0"、datasetId、errors[].id、reusableExpressions）→ App 的格式 ----
+// 交換格式不保證和 App 一樣：只在這裡做對應，其他流程（預覽、去重、寫入）都共用
+export const isExchange = (obj) => !!obj && typeof obj === 'object' && typeof obj.datasetId === 'string' && /^1(\.\d+){0,2}$/.test(String(obj.schemaVersion)) && obj.schemaVersion !== 1;
+
+export function fromExchange(obj) {
+  const ss = Array.isArray(obj.sessions) ? obj.sessions : [];
+  const s0 = ss[0] || {};
+  const topics = Array.isArray(s0.topics) ? s0.topics : [];
+  const topicTitle = Object.fromEntries(topics.map((x) => [x?.id, x?.title]));
+  const ext = (id) => (id ? `${obj.datasetId}:${id}` : '');
+  const rec = obj.reviewRecommendation || {};
+  const prio = Array.isArray(rec.priorityErrorIds) ? rec.priorityErrorIds : [];
+  return {
+    schemaVersion: SCHEMA_VERSION,
+    format: 'exchange',
+    datasetId: obj.datasetId,
+    session: {
+      sourceId: `ex:${s0.id || obj.datasetId}`,
+      date: s0.date,
+      topic: topics.map((x) => x?.title).filter(Boolean).join('、') || s0.id,
+      round: null,
+      transcript: s0.rawTranscriptIncluded && typeof s0.rawTranscript === 'string' ? s0.rawTranscript : '',
+      // 沒附完整逐字稿：原句是 ChatGPT 標明的逐句摘錄
+      excerptOnly: !s0.rawTranscriptIncluded,
+      importNotes: [obj.notesZh, s0.rawTranscriptNoteZh].filter(Boolean),
+      extraSessions: ss.length - 1,
+    },
+    newPerDay: Number.isInteger(rec.dailyNewCardLimit) && rec.dailyNewCardLimit > 0 ? rec.dailyNewCardLimit : 0,
+    errors: (Array.isArray(obj.errors) ? obj.errors : []).map((e) => ({
+      ...e,
+      externalId: ext(e?.id),
+      sourceTopic: e?.sourceTopic || topicTitle[e?.sourceRoundId] || '',
+      round: e?.sourceRoundId || '',
+      reviewPriority: prio.includes(e?.id) ? prio.indexOf(e.id) + 1 : Number.isInteger(e?.reviewPriority) ? e.reviewPriority : null,
+    })),
+    phrases: (Array.isArray(obj.reusableExpressions) ? obj.reusableExpressions : []).map((p) => ({
+      ...p,
+      externalId: ext(p?.id),
+      tags: p?.tags || (p?.contextTag ? [p.contextTag] : []),
+      kind: p?.sourceType === 'inferredExpression' ? 'inferredExpression' : 'reusablePhrase',
+      usage: p?.usage || '',
+      addToSrs: p?.addToSrs !== false,
+      sourceTopic: p?.sourceTopic || '',
+    })),
+  };
+}
+
 // ---- 2. 檢查格式（schemaVersion 1）----
 // 回傳 fatal（整份不能匯入的原因）、warnings，和整理好的 session / errors / phrases
-export function validateImport(obj) {
+export function validateImport(input) {
   const fatal = [];
   const warnings = [];
+  const obj = isExchange(input) ? fromExchange(input) : input;
   if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return { fatal: ['最外層要是一個物件 { … }。'], warnings, errors: [], phrases: [] };
   if (obj.schemaVersion !== SCHEMA_VERSION) fatal.push(`schemaVersion 要是 ${SCHEMA_VERSION}（現在是 ${JSON.stringify(obj.schemaVersion)}）。`);
   const s0 = obj.session;
@@ -108,6 +160,11 @@ export function validateImport(obj) {
   if (obj.errors != null && !Array.isArray(obj.errors)) fatal.push('errors 要是陣列 [ … ]。');
   if (obj.phrases != null && !Array.isArray(obj.phrases)) fatal.push('phrases 要是陣列 [ … ]。');
   const kind = s.kind === 'userList' ? 'userList' : 'practice';
+  const excerptOnly = !!s.excerptOnly;
+  if (obj.format === 'exchange') {
+    warnings.push(`ChatGPT 交換格式（資料集 ${obj.datasetId}），已經對應成 App 的欄位。`);
+    if (s.extraSessions > 0) fatal.push(`這份有 ${s.extraSessions + 1} 個 sessions，目前一次只能匯入一個，請分開匯入。`);
+  }
   const session = {
     sourceId: clip(s.sourceId, 200),
     kind,
@@ -120,8 +177,14 @@ export function validateImport(obj) {
     vocabularyNotes: strList(s.vocabularyNotes, 30),
     phraseNotes: strList(s.phraseNotes, 30),
     logicNotes: strList(s.logicNotes, 30),
+    importNotes: strList(s.importNotes, 5),
+    excerptOnly,
+    format: obj.format === 'exchange' ? 'exchange' : 'app',
+    datasetId: clip(obj.datasetId, 200),
+    newPerDay: obj.newPerDay || 0,
   };
-  if (kind === 'practice' && !session.transcript) warnings.push('沒有附逐字稿（session.transcript）：錯誤原句沒辦法核對，會標成「未核對」，不算進出現次數。');
+  if (excerptOnly) warnings.push('沒有附完整逐字稿：原句是 ChatGPT 標明的逐句摘錄（verifiedOriginal），會標「逐字稿摘錄」並算 1 次；修正句一律是建議。');
+  else if (kind === 'practice' && !session.transcript) warnings.push('沒有附逐字稿（session.transcript）：錯誤原句沒辦法核對，會標成「未核對」，不算進出現次數。');
 
   const errors = (Array.isArray(obj.errors) ? obj.errors : []).map((e, i) => {
     const problems = [];
@@ -135,6 +198,13 @@ export function validateImport(obj) {
       explanationZh: clip(e0.explanationZh, 800),
       examples: strList(e0.examples, 5),
       inferredExpression: clip(e0.inferredExpression, 400),
+      recurrenceGroup: clip(e0.recurrenceGroup, 100),
+      externalId: clip(e0.externalId, 300),
+      sourceTopic: clip(e0.sourceTopic, 200),
+      round: clip(e0.round, 100),
+      reviewPriority: Number.isInteger(e0.reviewPriority) && e0.reviewPriority > 0 ? e0.reviewPriority : null,
+      semanticInference: e0.semanticInference === true,
+      declaredOriginal: e0.sourceType === undefined || e0.sourceType === 'verifiedOriginal',
       problems,
       notes: [],
     };
@@ -144,6 +214,8 @@ export function validateImport(obj) {
     if (row.verifiedOriginal && norm(row.verifiedOriginal) === norm(row.suggestedCorrection)) problems.push('原句和修正一模一樣');
     if (e0.errorCategory && !ERROR_CATEGORIES[e0.errorCategory]) row.notes.push(`不認得的類型「${e0.errorCategory}」，先放「其他」`);
     if (!e0.errorCategory) row.notes.push('沒給類型，先放「其他」');
+    if (row.semanticInference) row.notes.push('修正是依語意推測（原句可能是語音辨識錯字），請自己確認原意');
+    if (!row.declaredOriginal) row.notes.push(`sourceType 是「${e0.sourceType}」，不是你的原句：不算出現次數`);
     return row;
   });
 
@@ -159,6 +231,8 @@ export function validateImport(obj) {
       tags,
       kind: p0.kind === 'inferredExpression' ? 'inferredExpression' : 'reusablePhrase',
       addToSrs: p0.addToSrs !== false,
+      externalId: clip(p0.externalId, 300),
+      isSuggestedSupplement: p0.isSuggestedSupplement === true,
       problems: [],
       notes: [],
     };
@@ -216,13 +290,18 @@ export function buildBankPreview(obj, items, existingSession = null) {
   const errors = v.errors.map((r) => {
     if (r.problems.length) return { ...r, status: 'invalid', selected: false };
     const key = errorKeyOf(r);
-    const evidence = session.kind === 'userList' ? 'userReported' : inTranscript(transcript, r.verifiedOriginal) ? 'transcript' : 'unverified';
+    const evidence = session.kind === 'userList' ? 'userReported'
+      : inTranscript(transcript, r.verifiedOriginal) ? 'transcript'
+        : session.excerptOnly && r.declaredOriginal ? 'excerpt' : 'unverified';
     const notes = [...r.notes];
     if (evidence === 'unverified') notes.push('原句在逐字稿裡找不到，會存成「未核對」，不算出現次數');
     const ok = occKey(sessionId, r.verifiedOriginal);
     const base = { ...r, key, docId: errorDocId(key), evidence, notes };
     if (batchOcc.has(ok)) return { ...base, status: 'same', selected: false, notes: [...notes, '這份 JSON 裡重複出現，只算一次'] };
     batchOcc.add(ok);
+    // datasetId + item.id 已經匯入過（就算修正句改了）也算同一筆
+    const byExt = r.externalId && errCards.find((it) => (it.occurrences || []).some((o) => o.externalId === r.externalId));
+    if (byExt) return { ...base, status: 'same', selected: false, target: byExt.id };
     const hit = byKey[key];
     if (hit) {
       if ((hit.occurrences || []).some((o) => occKey(o.sessionId, o.text) === ok)) return { ...base, status: 'same', selected: false, target: hit.id };
@@ -243,6 +322,8 @@ export function buildBankPreview(obj, items, existingSession = null) {
     const base = { ...r, key, docId: phraseDocId(key) };
     if (batchP.has(key)) return { ...base, status: 'same', selected: false, notes: [...r.notes, '這份 JSON 裡重複出現'] };
     batchP.add(key);
+    const byExt = r.externalId && phraseCards.find((it) => (it.sources || []).some((x) => x.externalId === r.externalId));
+    if (byExt) return { ...base, status: 'same', selected: false, target: byExt.id };
     const hit = pByKey[key];
     if (hit) {
       if ((hit.sources || []).some((x) => x.sessionId === sessionId)) return { ...base, status: 'same', selected: false, target: hit.id };
@@ -281,7 +362,10 @@ export function bankImportOps(preview, items, t, nowMs = Date.now(), existingSes
   const fresh = {};
   const linked = {};
   for (const r of pickedE) {
-    const occ = { ...src, text: r.verifiedOriginal, evidence: r.evidence, importedAtMs: nowMs };
+    const occ = {
+      ...src, topic: r.sourceTopic || session.topic, round: r.round || session.round, text: r.verifiedOriginal, evidence: r.evidence, importedAtMs: nowMs,
+      ...(r.externalId ? { externalId: r.externalId } : {}),
+    };
     if (r.status === 'linked' && byId[r.target]) {
       const cur = linked[r.target] || byId[r.target].occurrences || [];
       linked[r.target] = [...cur, occ];
@@ -307,17 +391,26 @@ export function bankImportOps(preview, items, t, nowMs = Date.now(), existingSes
       pattern: r.pattern,
       examples: r.examples,
       inferredExpression: r.inferredExpression,
-      sourceTopic: session.topic,
+      sourceTopic: r.sourceTopic || session.topic,
       sourceDate: session.date,
       sourceSessionId: session.id,
+      recurrenceGroup: r.recurrenceGroup,
+      reviewPriority: r.reviewPriority,
+      semanticInference: r.semanticInference,
       status: 'new',
       occurrences: [occ],
       createdAtMs: nowMs,
     };
   }
-  for (const [id, data] of Object.entries(fresh)) {
+  // 有 dailyNewCardLimit 時：優先項目今天複習，其他新卡每天 N 張往後排，不會一次塞爆
+  const per = session.newPerDay || 0;
+  let slot = 0;
+  const nextDue = () => (per ? addDays(t, 1 + Math.floor(slot++ / per)) : t);
+  const freshList = Object.entries(fresh).sort((a, b) => (a[1].reviewPriority || 99) - (b[1].reviewPriority || 99));
+  for (const [id, data] of freshList) {
     const occurrenceCount = data.occurrences.filter(counts).length;
-    ops.push({ add: 'englishItems', id, data: { ...data, occurrenceCount, lastSeenDate: session.date } });
+    const due = data.reviewPriority ? t : nextDue();
+    ops.push({ add: 'englishItems', id, data: { ...data, due, occurrenceCount, lastSeenDate: session.date } });
   }
   for (const [id, occurrences] of Object.entries(linked)) {
     const prev = byId[id];
@@ -334,7 +427,7 @@ export function bankImportOps(preview, items, t, nowMs = Date.now(), existingSes
   let phrasesNew = 0;
   for (const r of pickedP) {
     if (r.status === 'linked' && byId[r.target]) {
-      ops.push({ set: `englishItems/${r.target}`, data: { sources: [...(byId[r.target].sources || []), src] } });
+      ops.push({ set: `englishItems/${r.target}`, data: { sources: [...(byId[r.target].sources || []), { ...src, ...(r.externalId ? { externalId: r.externalId } : {}) }] } });
       continue;
     }
     phrasesNew++;
@@ -347,13 +440,15 @@ export function bankImportOps(preview, items, t, nowMs = Date.now(), existingSes
           type: 'phrase', front: r.phrase, back: r.meaningZh, example: r.example, note: r.usage,
           tags: r.tags.length ? r.tags : ['錯誤庫'], source: 'errorBank',
         }, t),
+        due: r.addToSrs ? nextDue() : t,
         bank: 'phrase',
         phraseKey: r.status === 'similar' ? `${r.key}|${session.id}` : r.key,
         meaningZh: r.meaningZh,
         usage: r.usage,
         kind: r.kind,
         srs: r.addToSrs,
-        sources: [src],
+        isSuggestedSupplement: r.isSuggestedSupplement,
+        sources: [{ ...src, ...(r.externalId ? { externalId: r.externalId } : {}) }],
         status: 'new',
         createdAtMs: nowMs,
       },
@@ -397,14 +492,14 @@ export function pickRetry(items, { sessionId, n = 5, t } = {}) {
   return bankErrors(items)
     .filter((it) => !sessionId || (it.occurrences || []).some((o) => o.sessionId === sessionId))
     .map((it) => ({ it, rep: (it.occurrences || []).filter(counts).length, due: t && (it.due || '') <= t ? 0 : 1 }))
-    .sort((a, b) => b.rep - a.rep || a.due - b.due || (a.it.box || 0) - (b.it.box || 0) || String(a.it.id).localeCompare(String(b.it.id)))
+    .sort((a, b) => b.rep - a.rep || (a.it.reviewPriority || 99) - (b.it.reviewPriority || 99) || a.due - b.due || (a.it.box || 0) - (b.it.box || 0) || String(a.it.id).localeCompare(String(b.it.id)))
     .slice(0, n)
     .map((x) => x.it);
 }
 
 // ---- 給 ChatGPT 的指令：輸出上面這個格式 ----
 const CAT_KEYS = Object.keys(ERROR_CATEGORIES).join(' | ');
-export const BANK_PROMPT = `請把我們這次英文口說練習整理成一段 JSON，讓我匯入自己的英文學習 App。只輸出一個 \`\`\`json 程式碼區塊，不要其他文字。
+const PROMPT_BASE = `請把我們這次英文口說練習整理成一段 JSON，讓我匯入自己的英文學習 App。只輸出一個 \`\`\`json 程式碼區塊，不要其他文字。
 
 格式（schemaVersion 固定 1）：
 {
@@ -426,6 +521,7 @@ export const BANK_PROMPT = `請把我們這次英文口說練習整理成一段 
       "verifiedOriginal": "我真正說過的那一句，從 transcript 逐字複製",
       "suggestedCorrection": "建議的自然正確說法",
       "pattern": "錯誤句型的簡短寫法，例如 That's meaning → That means",
+      "recurrenceGroup": "同一類反覆錯誤的固定代號（英文小寫底線，例如 that_means）；不是反覆犯的就填 null",
       "errorCategory": "${CAT_KEYS}",
       "explanationZh": "中文解釋為什麼",
       "examples": ["延伸英文例句"],
@@ -452,3 +548,10 @@ export const BANK_PROMPT = `請把我們這次英文口說練習整理成一段 
 4. 一筆 error 只放一個錯誤；意思不同的錯誤分開列。
 5. phrases 是值得學的說法，不一定是我講錯的；kind 寫清楚是好用片語（reusablePhrase）還是你推導的延伸說法（inferredExpression）。
 6. 不要給分數、不要評論發音。`;
+
+// 把已經有的 recurrenceGroup 告訴 ChatGPT，同一種錯誤下次才會接到同一張卡
+export function bankPrompt(items) {
+  const groups = [...new Set(bankErrors(items).map((it) => it.recurrenceGroup).filter(Boolean))].sort();
+  return groups.length ? `${PROMPT_BASE}\n7. 我已經有的 recurrenceGroup：${groups.join(', ')}。同一種錯誤請沿用這些代號。` : PROMPT_BASE;
+}
+export const BANK_PROMPT = PROMPT_BASE;

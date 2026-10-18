@@ -95,12 +95,12 @@ describe('錯誤庫：去重', () => {
     runImport(SEED_IMPORT, store);
     const { p } = runImport(SAMPLE_IMPORT, store);
     expect(p.errors[0].status).toBe('linked');
-    const card = itemsOf(store).find((i) => i.pattern === "That's meaning → That means");
-    expect(card.occurrences.map((o) => o.evidence)).toEqual(['userReported', 'transcript']);
+    const card = itemsOf(store).find((i) => i.recurrenceGroup === 'that_means');
+    expect(card.occurrences.map((o) => o.evidence)).toEqual(['excerpt', 'transcript']);
     expect(card.occurrenceCount).toBe(2);
-    // 片語「That doesn't necessarily mean…」已經在初始清單：只記來源，不重複建卡
+    // 片語「That doesn't necessarily mean…」已經在 10/18 資料：只記來源，不重複建卡
     expect(p.phrases[0].status).toBe('linked');
-    expect(itemsOf(store).filter((i) => i.bank === 'phrase').length).toBe(SEED_IMPORT.phrases.length);
+    expect(itemsOf(store).filter((i) => i.bank === 'phrase').length).toBe(SEED_IMPORT.reusableExpressions.length);
   });
   it('同一份 JSON 裡同一句列兩次只算一次', () => {
     const e = { verifiedOriginal: 'I have anxiety', suggestedCorrection: 'I feel anxious', errorCategory: 'collocation' };
@@ -132,9 +132,13 @@ describe('錯誤庫：和原本的 Leitner 複習接在一起', () => {
     const store = {};
     runImport(SEED_IMPORT, store);
     const items = itemsOf(store);
-    const due = dueItems(items, '2026-10-18');
-    expect(due.length).toBe(SEED_IMPORT.errors.length + SEED_IMPORT.phrases.length);
     expect(items.filter((i) => i.bank === 'error').every((i) => i.type === 'fix' && i.box === 0 && i.status === 'new')).toBe(true);
+    // 10 個優先項目今天就複習，而且照 1→10 排；其他新卡每天 5 張往後排
+    const due = dueItems(items, '2026-10-18');
+    expect(due.length).toBe(10);
+    expect(due.map((x) => x.occurrences[0].externalId.split(':')[1])).toEqual(SEED_IMPORT.reviewRecommendation.priorityErrorIds);
+    expect(dueItems(items, '2026-10-19').length).toBe(15);
+    expect(dueItems(items, '2026-12-31').length).toBe(SEED_IMPORT.errors.length + SEED_IMPORT.reusableExpressions.length);
   });
   it('沒勾加入複習的片語不進複習', () => {
     expect(practicable({ type: 'phrase', front: 'x', srs: false })).toBe(false);
@@ -164,11 +168,11 @@ describe('錯誤庫：分析與 Retry', () => {
     runImport(SEED_IMPORT, store);
     runImport(SAMPLE_IMPORT, store);
     const st = bankStats(itemsOf(store), '2026-10-18');
-    expect(st.total).toBe(12);
+    expect(st.total).toBe(32);
     expect(st.repeated.length).toBe(1);
-    expect(st.categories[0]).toEqual(['wordForm', 3]);
-    expect(st.categories).toContainEqual(['grammar', 2]);
-    expect(st.last7.length).toBe(12);
+    expect(st.categories[0]).toEqual(['naturalExpression', 8]);
+    expect(st.categories).toContainEqual(['grammar', 7]);
+    expect(st.last7.length).toBe(32);
     expect(bankStats(itemsOf(store), '2026-11-30').last30.length).toBe(0);
   });
   it('Retry 優先挑反覆出現的，最多 5 張，可以限定某次練習', () => {
@@ -177,15 +181,55 @@ describe('錯誤庫：分析與 Retry', () => {
     runImport(SAMPLE_IMPORT, store);
     const picks = pickRetry(itemsOf(store), { t: '2026-10-18' });
     expect(picks.length).toBe(5);
-    expect(picks[0].pattern).toBe("That's meaning → That means");
+    expect(picks[0].recurrenceGroup).toBe('that_means');
+    // 其他照 ChatGPT 的優先順序
+    expect(picks[1].recurrenceGroup).toBe('perspectives');
     const sid = sessionDocId(SAMPLE_IMPORT.session);
     expect(pickRetry(itemsOf(store), { sessionId: sid }).length).toBe(1);
   });
   it('初始資料本身通過檢查', () => {
     const v = validateImport(SEED_IMPORT);
     expect(v.fatal).toEqual([]);
-    expect(v.errors.every((e) => !e.problems.length && !e.notes.length)).toBe(true);
-    expect(v.phrases.every((p) => !p.problems.length && !p.notes.length)).toBe(true);
+    expect(v.errors.length).toBe(32);
+    expect(v.phrases.length).toBe(16);
+    expect(v.errors.every((e) => !e.problems.length)).toBe(true);
+    expect(v.errors.filter((e) => e.semanticInference).length).toBe(2);
+    expect(v.phrases.every((p) => !p.problems.length && p.isSuggestedSupplement)).toBe(true);
     expect(norm('Instead of rebuilding…')).toBe('instead of rebuilding');
+  });
+});
+
+describe('錯誤庫：ChatGPT 交換格式（schemaVersion 1.0.0）', () => {
+  it('對應成 App 欄位：來源主題、優先順序、語意推測、片語標籤', () => {
+    const store = {};
+    const { p } = runImport(SEED_IMPORT, store);
+    expect(p.fatal).toEqual([]);
+    expect(p.errors.every((r) => r.status === 'new' && r.evidence === 'excerpt')).toBe(true);
+    const items = itemsOf(store);
+    const e = items.find((i) => i.originalText === 'I want to into every industry');
+    expect(e).toMatchObject({ correctedText: 'I want to explore different industries', errorCategory: 'grammar', sourceTopic: 'Goals and Future Self', reviewPriority: 4, recurrenceGroup: 'want_to', occurrenceCount: 1 });
+    expect(e.occurrences[0].externalId).toBe('personal-speaking-2026-10-18-v1:20261018-goals_future-06');
+    expect(items.find((i) => i.originalText === 'You can sell that.').semanticInference).toBe(true);
+    const ph = items.find((i) => i.front === 'Introduce more bugs');
+    expect(ph).toMatchObject({ bank: 'phrase', tags: ['Technology'], isSuggestedSupplement: true, srs: true });
+    // 原始逐字稿沒附：紀錄不假裝有逐字稿
+    expect(sessionOf(store, p.session.id).transcript).toBe('');
+  });
+  it('同一份資料集再匯入：datasetId + id 都已經有，什麼都不寫', () => {
+    const store = {};
+    runImport(SEED_IMPORT, store);
+    const before = JSON.stringify(store);
+    // 就算 ChatGPT 改了修正句，同一個 id 也不會變成新卡
+    const tweaked = { ...SEED_IMPORT, errors: SEED_IMPORT.errors.map((x, i) => (i ? x : { ...x, suggestedCorrection: 'Before my last year at university' })) };
+    const { p, ops } = runImport(tweaked, store);
+    expect(p.errors.every((r) => r.status === 'same')).toBe(true);
+    expect(ops).toEqual([]);
+    expect(JSON.stringify(store)).toBe(before);
+  });
+  it('sourceType 不是 verifiedOriginal 的不算次數', () => {
+    const obj = { ...SEED_IMPORT, datasetId: 'x', sessions: [{ ...SEED_IMPORT.sessions[0], id: 'other' }], errors: [{ ...SEED_IMPORT.errors[0], id: 'a', sourceType: 'inferredExpression' }], reusableExpressions: [] };
+    const store = {};
+    runImport(obj, store);
+    expect(itemsOf(store)[0].occurrenceCount).toBe(0);
   });
 });

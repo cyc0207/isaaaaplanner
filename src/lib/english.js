@@ -135,6 +135,8 @@ export function dueItems(items, t) {
   return items
     .filter((it) => practicable(it) && (it.due || '') <= t)
     .sort((a, b) => (wed ? repeatRank(b) - repeatRank(a) : 0)
+      // ChatGPT 建議的優先複習項目（reviewPriority 1、2、3…）排在一般卡片前面
+      || (a.reviewPriority || 99) - (b.reviewPriority || 99)
       || (a.due || '').localeCompare(b.due || '') || (a.box || 0) - (b.box || 0));
 }
 

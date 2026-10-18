@@ -7,7 +7,7 @@ import { reviewGrade } from '../lib/english.js';
 import { logError } from '../lib/errlog.js';
 import { canListen, startListening } from '../lib/speech.js';
 import {
-  BANK_PROMPT, ERROR_CATEGORIES, EVIDENCE, PHRASE_TAGS, ROW_STATUS, STATUS, bankErrors, bankImportOps, bankPhrases, bankStats, bankStatus,
+  bankPrompt, ERROR_CATEGORIES, EVIDENCE, PHRASE_TAGS, ROW_STATUS, STATUS, bankErrors, bankImportOps, bankPhrases, bankStats, bankStatus,
   buildBankPreview, counts, parseImportText, pickRetry, sessionDocId, validateImport,
 } from '../lib/errorBank.js';
 import { SAMPLE_IMPORT, SEED_IMPORT } from '../data/errorBankSeed.js';
@@ -66,7 +66,7 @@ export default function ErrorBank({ onBack, startView = 'errors' }) {
       {!errors.length && !bankPhrases(englishItems).length && view !== 'import' && (
         <div className="card bank-empty">
           <p className="strong">錯誤庫還是空的。</p>
-          <p className="small muted">先到「匯入」貼上 ChatGPT 的批改 JSON，或載入你列好的初始清單。</p>
+          <p className="small muted">先到「匯入」貼上 ChatGPT 的批改 JSON，或載入 10/18 的口說資料。</p>
           <button className="btn primary small" onClick={() => setView('import')}>
             去匯入
           </button>
@@ -130,8 +130,10 @@ function ErrorList({ onRetry }) {
               <div className="task-meta">
                 <span className="chip">{ERROR_CATEGORIES[it.errorCategory] || '其他'}</span>
                 <StatusChip it={it} />
+                {it.reviewPriority && <span className="chip warn">優先</span>}
                 {countOf(it) >= 2 && <span className="chip warn">出現 {countOf(it)} 次</span>}
                 {!countOf(it) && <span>未核對</span>}
+                {it.semanticInference && <span>修正依語意推測</span>}
                 {(it.due || '') <= t && <span>今天要複習</span>}
               </div>
             </div>
@@ -156,6 +158,7 @@ function ErrorDetail({ id, onClose }) {
         <p className="fb-label">建議修正（suggestedCorrection）</p>
         <p className="fix-new">{it.correctedText}</p>
         {it.explanationZh && <p>{it.explanationZh}</p>}
+        {it.semanticInference && <p className="small warn-text">這句的修正是依語意推測的（原句可能是語音辨識錯字），請確認是不是你的原意。</p>}
         {it.pattern && <p className="small muted">句型：{it.pattern}</p>}
         {(it.examples || []).length > 0 && (
           <>
@@ -180,7 +183,7 @@ function ErrorDetail({ id, onClose }) {
           {occ.map((o, i) => (
             <li key={i}>
               {shortLabel(o.date)}・{o.topic}
-              {o.round ? ` Round ${o.round}` : ''}：「{o.text}」<span className="muted">（{EVIDENCE[o.evidence]}）</span>
+              {Number.isInteger(o.round) ? ` Round ${o.round}` : ''}：「{o.text}」<span className="muted">（{EVIDENCE[o.evidence]}）</span>
             </li>
           ))}
         </ul>
@@ -247,6 +250,7 @@ function PhraseList() {
                   <span key={x}>#{x}</span>
                 ))}
                 {it.kind === 'inferredExpression' && <span className="chip">AI 推導</span>}
+                {it.isSuggestedSupplement && <span className="chip">推薦片語</span>}
                 {it.srs !== false && <StatusChip it={it} />}
                 <span>來源：{(it.sources || []).map((s) => shortLabel(s.date)).join('、')}</span>
               </div>
@@ -370,7 +374,7 @@ function Sessions({ imports, onRetry }) {
               </div>
               <div className="task-meta">
                 <span>錯誤 {cardsOf(x.id).length}</span>
-                {x.kind === 'userList' ? <span className="chip">你自己列的清單</span> : x.transcript ? <span>逐字稿 {x.transcript.length} 字</span> : <span className="chip warn">沒有逐字稿</span>}
+                {x.kind === 'userList' ? <span className="chip">你自己列的清單</span> : x.transcript ? <span>逐字稿 {x.transcript.length} 字</span> : x.excerptOnly ? <span className="chip">逐句摘錄</span> : <span className="chip warn">沒有逐字稿</span>}
               </div>
             </div>
           </li>
@@ -391,7 +395,7 @@ function Sessions({ imports, onRetry }) {
               </button>
             )}
             <p className="fb-label">原始逐字稿（我真正說的）</p>
-            <p className="pasted">{s.transcript || '（沒有逐字稿）'}</p>
+            <p className="pasted">{s.transcript || (s.excerptOnly ? '（這份沒有附完整逐字稿，原句摘錄在每張錯誤卡上）' : '（沒有逐字稿）')}</p>
             {s.correctedTranscript && (
               <>
                 <p className="fb-label">修正後自然英文（AI 建議）</p>
@@ -403,6 +407,7 @@ function Sessions({ imports, onRetry }) {
               ['vocabularyNotes', '詞彙問題'],
               ['phraseNotes', '片語建議'],
               ['logicNotes', '邏輯與表達建議'],
+              ['importNotes', '匯入說明'],
             ].map(([k, l]) =>
               (s[k] || []).length ? (
                 <div key={k}>
@@ -435,10 +440,10 @@ function ImportPanel({ onDone }) {
 
   const copyPrompt = async () => {
     try {
-      await navigator.clipboard.writeText(BANK_PROMPT);
+      await navigator.clipboard.writeText(bankPrompt(englishItems));
       setCopied(true);
     } catch {
-      window.prompt('複製下面這段，貼給 ChatGPT', BANK_PROMPT);
+      window.prompt('複製下面這段，貼給 ChatGPT', bankPrompt(englishItems));
     }
   };
 
@@ -469,6 +474,15 @@ function ImportPanel({ onDone }) {
     } finally {
       setBusy(false);
     }
+  };
+
+  const onFile = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    const raw = await file.text();
+    setText(raw);
+    check(raw);
   };
 
   const load = (obj) => {
@@ -511,8 +525,12 @@ function ImportPanel({ onDone }) {
           <button className="btn primary" onClick={() => check(text)} disabled={!text.trim() || busy}>
             {busy ? '檢查中…' : '檢查'}
           </button>
+          <label className="btn file-btn">
+            選 JSON 檔
+            <input type="file" accept=".json,application/json,text/plain" onChange={onFile} hidden />
+          </label>
           <button className="btn" onClick={() => load(SEED_IMPORT)} disabled={busy}>
-            載入初始清單（12 個錯誤、14 個片語）
+            載入 10/18 口說資料（32 個錯誤、16 個片語）
           </button>
         </div>
         {result && (
@@ -534,7 +552,8 @@ function ImportPanel({ onDone }) {
               {preview.session.round ? ` Round ${preview.session.round}` : ''}
             </strong>
             <span className="small muted">
-              {preview.session.kind === 'userList' ? '你自己列的清單（沒有逐字稿，每筆錯誤算 1 次）' : `逐字稿 ${preview.session.transcript.length} 字`}
+              {preview.session.kind === 'userList' ? '你自己列的清單（沒有逐字稿，每筆錯誤算 1 次）' : preview.session.excerptOnly ? '沒有完整逐字稿，原句是逐句摘錄' : `逐字稿 ${preview.session.transcript.length} 字`}
+              {preview.session.newPerDay ? `・優先項目今天複習，其他新卡每天 ${preview.session.newPerDay} 張` : ''}
               {preview.session.exists ? '・已經匯入過' : ''}
             </span>
           </div>
@@ -554,7 +573,9 @@ function ImportPanel({ onDone }) {
                   <div className="task-meta">
                     <span className={`chip ${r.status === 'new' ? 'ok' : r.status === 'similar' || r.status === 'invalid' ? 'warn' : ''}`}>{ROW_STATUS[r.status]}</span>
                     <span className="chip">{ERROR_CATEGORIES[r.errorCategory]}</span>
+                    {r.reviewPriority && <span className="chip warn">優先 {r.reviewPriority}</span>}
                     {r.evidence && <span>{EVIDENCE[r.evidence]}</span>}
+                    {r.sourceTopic && <span>{r.sourceTopic}</span>}
                   </div>
                   {r.status === 'similar' && <div className="small muted">像現有的：{r.targetText}（勾起來會另存一張，不合併）</div>}
                   {r.status === 'linked' && <div className="small muted">會加到「{r.targetText}」的出現紀錄</div>}
@@ -580,6 +601,7 @@ function ImportPanel({ onDone }) {
                   <div className="task-meta">
                     <span className={`chip ${r.status === 'new' ? 'ok' : r.status === 'similar' || r.status === 'invalid' ? 'warn' : ''}`}>{ROW_STATUS[r.status]}</span>
                     {r.kind === 'inferredExpression' && <span className="chip">AI 推導</span>}
+                    {r.isSuggestedSupplement && <span className="chip">推薦片語，不是你說錯的</span>}
                     {r.tags.map((x) => (
                       <span key={x}>#{x}</span>
                     ))}
