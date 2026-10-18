@@ -1,5 +1,5 @@
 import { parseCSVObjects, toCSV } from './csv.js';
-import { addDays } from './date.js';
+import { addDays, weekday } from './date.js';
 
 export const ENGLISH_HEADER = ['type', 'front', 'back', 'example', 'tags', 'source', 'note'];
 // 匯出時多帶這幾欄；匯入時有就讀、沒有也可以
@@ -104,16 +104,38 @@ export function review(item, remembered, t) {
     reps: (item.reps || 0) + 1,
     lapses: (item.lapses || 0) + (remembered ? 0 : 1),
     lastReviewed: t,
+    // 錯誤庫的卡片多記一個狀態（新的／學習中／已學會），盒子 4 以上算學會
+    ...(item.bank ? { status: box >= 4 ? 'mastered' : 'learning' } : {}),
   };
 }
 
-// pending：從 ChatGPT 補進來、還沒輪到的新字，不算進複習
-export const practicable = (it) => it.type !== 'link' && it.front && !it.pending;
+// Speaking Retry 的三段自評：0 不會（回第一格）、1 有點會（同一格，明天再來）、2 熟悉（往後一格）
+export function reviewGrade(item, grade, t) {
+  if (grade !== 1) return review(item, grade === 2, t);
+  const box = item.box || 0;
+  return {
+    box,
+    due: addDays(t, 1),
+    reps: (item.reps || 0) + 1,
+    lapses: item.lapses || 0,
+    lastReviewed: t,
+    ...(item.bank ? { status: box >= 4 ? 'mastered' : 'learning' } : {}),
+  };
+}
+
+// pending：從 ChatGPT 補進來、還沒輪到的新字，不算進複習；srs === false：錯誤庫裡沒勾「加入複習」的片語
+export const practicable = (it) => it.type !== 'link' && it.front && !it.pending && it.srs !== false;
+
+// 錯誤庫裡真的出現 2 次以上的錯誤（只算有原始來源的）
+const repeatRank = (it) => (it.bank === 'error' && (it.occurrenceCount || 0) >= 2 ? it.occurrenceCount : 0);
 
 export function dueItems(items, t) {
+  // 週三複習：反覆犯的錯誤排最前面，其他照原本順序
+  const wed = weekday(t) === 3;
   return items
     .filter((it) => practicable(it) && (it.due || '') <= t)
-    .sort((a, b) => (a.due || '').localeCompare(b.due || '') || (a.box || 0) - (b.box || 0));
+    .sort((a, b) => (wed ? repeatRank(b) - repeatRank(a) : 0)
+      || (a.due || '').localeCompare(b.due || '') || (a.box || 0) - (b.box || 0));
 }
 
 // 貼給 ChatGPT 的 prompt：網站「英文 → 匯入」有複製按鈕

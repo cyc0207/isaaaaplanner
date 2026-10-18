@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { collection, getDocs, limit, onSnapshot, orderBy, query, writeBatch } from 'firebase/firestore';
 import { db } from '../firebase.js';
 import { useData } from '../data.jsx';
@@ -11,7 +12,9 @@ import {
   TOPICS, ERROR_TYPES, answersSinceFeedback, countFillers, feedbackDue, feedbackPrompt, fixToCard, myTurns, nextQuestion, normFeedback,
   normReport, parsePasted, progressStats, recentContext, reportPrompt, sentenceToCard, speakingSec, FEEDBACK_EVERY,
 } from '../lib/speak.js';
+import { bankErrors, bankStats } from '../lib/errorBank.js';
 import { Sheet } from './ui.jsx';
+import ErrorBank from './ErrorBank.jsx';
 
 // 讀最近 30 次練習（不放進全域訂閱，紀錄多了也不會拖慢整個網站）
 function useSessions(uid) {
@@ -47,10 +50,13 @@ const savePref = (k, v) => {
 };
 
 // startTopic：從別的地方（例如之後的每日任務）直接開一個指定主題的 Free Talk
+// /english?tab=speak&bank=1 直接打開錯誤庫；bank=import 直接到匯入
 export default function SpeakCoach({ startTopic } = {}) {
   const { uid } = useData();
   const sessions = useSessions(uid);
-  const [view, setView] = useState(TOPICS[startTopic] ? 'talk' : 'home');
+  const [params] = useSearchParams();
+  const [view, setView] = useState(TOPICS[startTopic] ? 'talk' : params.get('bank') ? 'bank' : 'home');
+  const [bankView, setBankView] = useState(params.get('bank') === 'import' ? 'import' : 'errors');
   const [topic, setTopic] = useState(() => (TOPICS[startTopic] ? startTopic : pref('topic', 'free')));
   const [resume, setResume] = useState(null);
   const [openId, setOpenId] = useState(null);
@@ -66,9 +72,16 @@ export default function SpeakCoach({ startTopic } = {}) {
           setResume(null);
           setView('home');
         }}
+        onImport={() => {
+          setResume(null);
+          setBankView('import');
+          setView('bank');
+        }}
       />
     );
   }
+
+  if (view === 'bank') return <ErrorBank startView={bankView} onBack={() => setView('home')} />;
 
   return (
     <div className="coach">
@@ -111,6 +124,12 @@ export default function SpeakCoach({ startTopic } = {}) {
               </div>
               <ProgressLine sessions={sessions} />
             </button>
+            <BankEntry
+              onOpen={() => {
+                setBankView('errors');
+                setView('bank');
+              }}
+            />
             <div className="card coach-entry later">
               <div className="coach-entry-head">
                 <strong>Interview Practice</strong>
@@ -148,6 +167,29 @@ export default function SpeakCoach({ startTopic } = {}) {
   );
 }
 
+function BankEntry({ onOpen }) {
+  const { englishItems } = useData();
+  const n = bankErrors(englishItems).length;
+  const st = n ? bankStats(englishItems, today()) : null;
+  return (
+    <button className="card coach-entry bank-entry" onClick={onOpen}>
+      <div className="coach-entry-head">
+        <strong>我的英文錯誤庫</strong>
+        <span className="muted small">錯誤卡・片語・重說練習</span>
+      </div>
+      <span className="small">
+        {st ? (
+          <>
+            錯誤 <b className="num">{n}</b> 張・待複習 <b className="num">{st.due.length}</b>
+          </>
+        ) : (
+          '匯入 ChatGPT 批改結果'
+        )}
+      </span>
+    </button>
+  );
+}
+
 function ProgressLine({ sessions }) {
   if (!sessions) return <span className="muted small">載入中…</span>;
   const st = progressStats(sessions, today());
@@ -159,7 +201,7 @@ function ProgressLine({ sessions }) {
 }
 
 // ---- Free Talk 對話 ----
-function FreeTalk({ topic, resume, onDone }) {
+function FreeTalk({ topic, resume, onDone, onImport }) {
   const { api, englishLog, englishItems } = useData();
   const [s, setS] = useState(null); // 這次練習的資料
   const [busy, setBusy] = useState('');
@@ -364,6 +406,11 @@ function FreeTalk({ topic, resume, onDone }) {
         <button className="btn primary big" onClick={onDone}>
           完成
         </button>
+        {onImport && (
+          <button className="btn big" onClick={onImport}>
+            匯入 ChatGPT 批改結果到錯誤庫
+          </button>
+        )}
       </div>
     );
   }
