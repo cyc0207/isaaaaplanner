@@ -4,6 +4,7 @@ import { today } from '../lib/date.js';
 import { TYPES, buildEnglishPreview, dueItems, newItem, practicable, review } from '../lib/english.js';
 import { THEMES, ALL_THEMES } from '../data/decks.js';
 import { analyze } from '../lib/affix.js';
+import SundayDiscovery from './SundayDiscovery.jsx';
 import {
   MODES, MODE_LABEL, cloze, deckProgress, deckToItem, isCorrect, modeOf, pickMode, pickNewWords, refillPrompt, remainingIn, sentencePrompt, weekTheme,
 } from '../lib/study.js';
@@ -50,6 +51,7 @@ export default function EnglishToday({ goImport }) {
 
   return (
     <div className="eng-today">
+      <SundayDiscovery />
       <div className="card today-bar">
         <div className="row between wrap gap">
           <label className="theme-pick">

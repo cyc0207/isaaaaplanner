@@ -1,0 +1,53 @@
+// Sunday English Discovery：人工確認過的週日聽力教材。
+// 連結只放確定存在的官方網址；逐字稿在官方頁面上（TED 頁面的 Transcript），不複製內容。
+// 時長是大約值，以官方頁面為準。
+export const DISCOVERY_SEED = [
+  {
+    id: 'ted-sivers-movement',
+    date: '2026-10-18',
+    title: 'How to Start a Movement',
+    speaker: 'Derek Sivers',
+    source: 'TED',
+    url: 'https://www.ted.com/talks/derek_sivers_how_to_start_a_movement',
+    topic: '領導、創業',
+    level: '入門',
+    minutes: 3,
+    transcriptOnPage: true,
+  },
+  {
+    id: 'ted-duckworth-grit',
+    date: '2026-10-25',
+    title: 'Grit: The Power of Passion and Perseverance',
+    speaker: 'Angela Duckworth',
+    source: 'TED',
+    url: 'https://www.ted.com/talks/angela_lee_duckworth_grit_the_power_of_passion_and_perseverance',
+    topic: '心理學',
+    level: '中等',
+    minutes: 6,
+    transcriptOnPage: true,
+  },
+  {
+    id: 'ted-sivers-goals',
+    date: '2026-11-01',
+    title: 'Keep Your Goals to Yourself',
+    speaker: 'Derek Sivers',
+    source: 'TED',
+    url: 'https://www.ted.com/talks/derek_sivers_keep_your_goals_to_yourself',
+    topic: '心理學、人類行為',
+    level: '入門',
+    minutes: 3,
+    transcriptOnPage: true,
+  },
+  {
+    id: 'ted-sivers-weird',
+    date: '2026-11-08',
+    title: 'Weird, or Just Different?',
+    speaker: 'Derek Sivers',
+    source: 'TED',
+    url: 'https://www.ted.com/talks/derek_sivers_weird_or_just_different',
+    topic: '文化、有趣的知識',
+    level: '入門',
+    minutes: 3,
+    transcriptOnPage: true,
+  },
+];

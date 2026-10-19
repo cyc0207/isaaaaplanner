@@ -350,6 +350,16 @@ h3 { color: var(--text); font-size: 0.95rem; border-bottom: 2px solid var(--text
 .month-cell.sel { background: var(--accent-soft); }
 .mdl { background: var(--accent); border-radius: 3px; font-weight: 700; }
 .mrec { color: var(--teal); }
+/* Sunday English Discovery */
+.discovery summary .muted { margin-left: 0.3rem; font-weight: 400; }
+.disc-title { font-family: 'Noto Serif TC', var(--sans); font-size: 1.2rem; font-weight: 700; margin: 0.4rem 0 0.1rem; }
+.disc-btns { margin: 0.6rem 0 0.3rem; }
+.disc-btns a.btn { text-decoration: none; }
+.disc-form { display: grid; gap: 0.5rem; margin-top: 0.6rem; }
+.disc-form label { display: grid; gap: 0.3rem; font-size: 0.9rem; }
+.disc-pool { display: grid; gap: 0.4rem; margin-top: 0.5rem; }
+.disc-example { font-size: 0.75rem; white-space: pre-wrap; overflow-wrap: anywhere; background: var(--surface-2); padding: 0.5rem; border-radius: 8px; }
+
 
 .btn { border: 2px solid var(--line); border-radius: 999px; background: var(--surface-solid); color: var(--text); font-weight: 700; box-shadow: 2px 2px 0 var(--shadow); }
 .btn.primary { background: var(--accent); color: #fff8ec; box-shadow: 2px 2px 0 var(--shadow); }
