@@ -256,9 +256,10 @@ function FreeTalk({ topic, resume, onDone, firstQuestion, missionId, missionKind
     listener.current = startListening({
       lang,
       onText: (t) => setDraft(before + t),
-      onEnd: ({ sec }) => {
-        voiceSec.current += sec;
+      onEnd: ({ text, sec, auto }) => {
+        if (text) voiceSec.current += sec;
         setListening(false);
+        if (auto && !text) setErr({ message: '麥克風沒有收到聲音就停了。可以再按一次試試，或直接打字。' });
       },
       onError: (m) => {
         setListening(false);
