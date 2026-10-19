@@ -173,6 +173,7 @@ export function DataProvider({ uid, children }) {
       errorLog: (raw.errorLog || []).slice().sort((a, b) => (b.lastAt || 0) - (a.lastAt || 0)),
       englishJournal: byId('englishJournal'),
       englishSettings: settings.english || {},
+      englishSchedule: settings.englishSchedule || null,
       body: settings.body || null,
       dismissed: settings.suggest?.dismissed || {},
       // 已結帳的月份，改紀錄前先確認一次

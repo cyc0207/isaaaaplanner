@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Routes, Route, NavLink, Link, useLocation } from 'react-router-dom';
+import { Routes, Route, NavLink, Link, Navigate, useLocation } from 'react-router-dom';
 import { onAuthStateChanged, signInWithPopup, signInWithRedirect, getRedirectResult } from 'firebase/auth';
 import { auth, googleProvider } from './firebase.js';
 import { DataProvider, useData } from './data.jsx';
@@ -161,6 +161,8 @@ function Shell({ user }) {
               <Route path="/oracle" element={<OraclePage />} />
               <Route path="/inbox" element={<InboxPage />} />
               <Route path="/english" element={<EnglishPage />} />
+              {/* 行事曆提醒的連結：直接打開今天的英文任務 */}
+              <Route path="/mission" element={<Navigate to="/english?tab=mission" replace />} />
               <Route path="/study" element={<StudyPage />} />
               <Route path="*" element={<TodayPage />} />
             </Routes>

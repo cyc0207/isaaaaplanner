@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useData } from '../data.jsx';
 import { today } from '../lib/date.js';
@@ -12,11 +12,13 @@ import EnglishToday from '../components/EnglishToday.jsx';
 import ToeicCard from '../components/ToeicPlan.jsx';
 import AffixCards from '../components/AffixCards.jsx';
 import SpeakCoach from '../components/SpeakCoach.jsx';
+import { MissionTab } from '../components/Mission.jsx';
 import { Reader, Articles, PasteRead } from '../components/Reader.jsx';
 import { StudyNav } from './StudyPage.jsx';
 import { useGmailSync, SyncButton, QueryEditor } from '../components/Gmail.jsx';
 
 const TABS = [
+  ['mission', '任務'],
   ['practice', '今天'],
   ['speak', '口說'],
   ['flash', '字卡'],
@@ -28,7 +30,10 @@ const TABS = [
 export default function EnglishPage() {
   // /english?tab=speak&topic=work 直接開口說（topic 有給就直接開始聊）；/english?toeic=1 直接打開 TOEIC 閱讀 12 回進度
   const [params] = useSearchParams();
-  const [tab, setTab] = useState(() => (TABS.some(([k]) => k === params.get('tab')) ? params.get('tab') : 'practice'));
+  // /english?tab=mission 今天的英文任務（預設）；任務卡從首頁點進來時網址會換，分頁跟著換
+  const pick = () => (TABS.some(([k]) => k === params.get('tab')) ? params.get('tab') : params.get('toeic') === '1' ? 'practice' : 'mission');
+  const [tab, setTab] = useState(pick);
+  useEffect(() => setTab(pick()), [params]); // eslint-disable-line react-hooks/exhaustive-deps
   const [editing, setEditing] = useState(null);
   return (
     <div className="page">
@@ -49,7 +54,16 @@ export default function EnglishPage() {
           <EnglishToday goImport={() => setTab('import')} />
         </>
       )}
-      {tab === 'speak' && <SpeakCoach startTopic={params.get('topic')} />}
+      {tab === 'mission' && <MissionTab />}
+      {tab === 'speak' && (
+        <SpeakCoach
+          key={params.get('mission') || 'coach'}
+          startTopic={params.get('topic')}
+          startQuestion={params.get('q')}
+          missionId={params.get('mission')}
+          missionKind={params.get('kind')}
+        />
+      )}
       {tab === 'library' && <Library onEdit={setEditing} />}
       {tab === 'flash' && <AffixCards />}
       {tab === 'letters' && (

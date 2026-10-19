@@ -20,6 +20,7 @@ import { latestWeight, needsWeighIn } from '../lib/body.js';
 import { useFoodLog } from '../components/FoodLog.jsx';
 import { OotdTodayCard } from '../components/OotdLog.jsx';
 import { StudyTodayCard } from './StudyPage.jsx';
+import { MissionHomeCard } from '../components/Mission.jsx';
 import { photoStreak, slotLabel } from '../lib/foodlog.js';
 
 export default function TodayPage() {
@@ -94,6 +95,8 @@ export default function TodayPage() {
       <Reminders day={day} />
 
       <FoodHero />
+
+      <MissionHomeCard />
 
       <section className="home-cards">
         <OotdTodayCard />
