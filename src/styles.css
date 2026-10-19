@@ -1145,3 +1145,56 @@ label.opt { display: inline-flex; align-items: center; gap: 0.25rem; cursor: poi
 .big-line { font-size: 1.1rem; }
 .warn-text { color: var(--warn); }
 .hint.pre { white-space: pre-wrap; }
+
+/* ---- 每日英文任務 ---- */
+.mission { display: flex; flex-direction: column; gap: 0.7rem; }
+.mission-home { display: flex; flex-direction: column; gap: 0.2rem; margin-bottom: 1rem; color: var(--text); text-decoration: none; background: #d6e8e2; border-left: 8px solid var(--teal); }
+.mission-home.done, .mission-today.done { background: var(--warn-soft); border-left-color: var(--mustard); }
+.mission-today { display: flex; flex-direction: column; gap: 0.35rem; background: #d6e8e2; border-left: 8px solid var(--teal); }
+.mission-today p { margin: 0; }
+.mission-title { font-size: 1.15rem; line-height: 1.3; }
+.mission-pending { display: flex; flex-direction: column; gap: 0.4rem; margin-bottom: 0.5rem; }
+.mission-blocked { background: var(--over-soft); display: flex; flex-direction: column; gap: 0.4rem; }
+.mission-blocked p { margin: 0; }
+.mission-score { display: flex; flex-direction: column; gap: 0.35rem; }
+.mission-score p { margin: 0; }
+.mission-score .big { font-size: 1.8rem; }
+.mission-tags { display: flex; flex-wrap: wrap; gap: 0.3rem; align-items: center; margin: 0.25rem 0; }
+.chip.weak { background: var(--over-soft); color: var(--over); font-weight: 700; }
+.mission-phrases { display: flex; flex-direction: column; gap: 0.3rem; margin: 0.3rem 0; font-size: 0.9rem; }
+.mission-phrases .row { justify-content: space-between; }
+.mission-schedule { display: flex; flex-direction: column; gap: 0.35rem; }
+.mission-schedule-row { align-items: center; }
+.mission-schedule-row > .strong { width: 4rem; flex: none; }
+.mission-schedule-row select { min-width: 0; flex: 1; }
+.mission-reminder { margin-top: 0.8rem; }
+.mission-history li { padding: 0.3rem 0; border-bottom: 1px dashed var(--soft-line); }
+.listen { display: flex; flex-direction: column; gap: 0.6rem; }
+.listen p { margin: 0; }
+.listen-play { display: flex; flex-direction: column; align-items: stretch; gap: 0.3rem; }
+.listen-play .btn.big { margin-top: 0; }
+.listen-choices { display: grid; gap: 0.5rem; }
+.listen-choices.three { grid-template-columns: repeat(3, 1fr); }
+.listen-choices .btn.big { margin-top: 0; font-family: var(--pixel); font-size: 1.8rem; }
+.btn.on { background: var(--mustard); color: #2b2118; }
+.listen-q { display: flex; flex-direction: column; gap: 0.4rem; }
+.listen-options { display: flex; flex-direction: column; gap: 0.35rem; }
+.btn.opt { justify-content: flex-start; text-align: left; border-radius: 12px; min-height: 42px; padding: 0.35rem 0.7rem; font-weight: 500; height: auto; }
+.btn.opt b { margin-right: 0.4rem; }
+.listen-result { display: flex; flex-direction: column; gap: 0.6rem; }
+.listen-review { display: flex; flex-direction: column; gap: 0.35rem; border-left: 8px solid var(--teal); }
+.listen-review.wrong { border-left-color: var(--accent); }
+.listen-review p { margin: 0; }
+.listen-script { font-weight: 700; }
+.listen-opts { margin: 0; padding-left: 1.5rem; font-size: 0.92rem; }
+.listen-opts li.right { font-weight: 700; color: var(--teal); }
+.listen-opts li.mine { text-decoration: line-through; color: var(--accent); }
+.listen-lines { display: flex; flex-direction: column; gap: 0.3rem; }
+.listen-line { text-align: left; background: var(--surface-solid); border: 2px solid var(--soft-line); border-radius: 10px; padding: 0.4rem 0.6rem; font: inherit; color: var(--text); font-size: 0.92rem; cursor: pointer; }
+.listen-line.now { border-color: var(--line); background: var(--warn-soft); }
+.listen-review-q { padding-top: 0.35rem; border-top: 1px dashed var(--soft-line); }
+.listen-review-q.wrong .strong { color: var(--accent); }
+@media (prefers-color-scheme: dark) {
+  .mission-home, .mission-today { background: #1f3a38; }
+  .btn.on { color: #2b2118; }
+}

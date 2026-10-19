@@ -6,6 +6,7 @@ import { useData } from '../data.jsx';
 import { today, shortLabel } from '../lib/date.js';
 import { itemKey, newItem } from '../lib/english.js';
 import { logError } from '../lib/errlog.js';
+import { ENGLISH_HABIT } from '../lib/seed.js';
 import { callCoach, coachReady } from '../lib/coachApi.js';
 import { canListen, canSpeak, speak, startListening, stopSpeaking } from '../lib/speech.js';
 import {
@@ -49,9 +50,10 @@ const savePref = (k, v) => {
   }
 };
 
-// startTopic：從別的地方（例如之後的每日任務）直接開一個指定主題的 Free Talk
+// startTopic：從別的地方直接開一個指定主題的 Free Talk。
+// 每日英文任務（星期一 Free Talk、星期四面試）會再帶 startQuestion（第一題）和 missionId（做完把任務標成完成）
 // /english?tab=speak&bank=1 直接打開錯誤庫；bank=import 直接到匯入
-export default function SpeakCoach({ startTopic } = {}) {
+export default function SpeakCoach({ startTopic, startQuestion, missionId, missionKind } = {}) {
   const { uid } = useData();
   const sessions = useSessions(uid);
   const [params] = useSearchParams();
@@ -68,6 +70,9 @@ export default function SpeakCoach({ startTopic } = {}) {
       <FreeTalk
         topic={resume?.topic || topic}
         resume={resume}
+        firstQuestion={resume ? '' : startQuestion}
+        missionId={resume ? resume.missionId : missionId}
+        missionKind={resume ? resume.missionKind : missionKind}
         onDone={() => {
           setResume(null);
           setView('home');
@@ -201,8 +206,8 @@ function ProgressLine({ sessions }) {
 }
 
 // ---- Free Talk 對話 ----
-function FreeTalk({ topic, resume, onDone, onImport }) {
-  const { api, englishLog, englishItems } = useData();
+function FreeTalk({ topic, resume, onDone, onImport, firstQuestion, missionId, missionKind }) {
+  const { api, englishLog, englishItems, habits, habitLog } = useData();
   const [s, setS] = useState(null); // 這次練習的資料
   const [busy, setBusy] = useState('');
   const [err, setErr] = useState(null);
@@ -254,12 +259,13 @@ function FreeTalk({ topic, resume, onDone, onImport }) {
       }
       if (useAi) setBusy('AI 想一個問題…');
       try {
-        const text = useAi ? (await callCoach({ mode: 'chat', topic })).reply : nextQuestion(topic, []);
+        const text = firstQuestion || (useAi ? (await callCoach({ mode: 'chat', topic })).reply : nextQuestion(topic, []));
         if (cancelled) return;
         const first = { role: 'ai', text: text || 'What have you been up to today?', at: Date.now(), help: '' };
         const base = {
           mode: 'free', topic, date: today(), startedAtMs: Date.now(), endedAtMs: 0, speakingSec: 0,
           turns: [first], summary: '', feedbacks: [], report: null, fillers: {}, pronunciation: 'not_assessed',
+          ...(missionId ? { missionId, missionKind: missionKind || '' } : {}),
         };
         persist({ id: null, ...base });
         say(first.text);
@@ -372,6 +378,13 @@ function FreeTalk({ topic, resume, onDone, onImport }) {
     const t = today();
     const minutes = Math.max(1, Math.round((ended.endedAtMs - ended.startedAtMs) / 60000));
     if (!englishLog[t]) api.set(`englishLog/${t}`, { minutes, note: `口說 Free Talk ${answers.length} 次回答` });
+    // 每日任務：做完就標完成，首頁的「英文 15 分鐘」也一起打勾
+    if (cur.missionId) {
+      api.set(`englishMission/${cur.missionId}`, {
+        status: 'done', completedAtMs: Date.now(), speakSessionId: cur.id || '', result: { answers: answers.length, minutes: Math.min(minutes, 120) },
+      });
+      if (habits.includes(ENGLISH_HABIT) && !habitLog[t]?.done?.[ENGLISH_HABIT]) api.set(`habitLog/${t}`, { done: { [ENGLISH_HABIT]: true } });
+    }
     if (!ai) {
       setReport(true);
       return;

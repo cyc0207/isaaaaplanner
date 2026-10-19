@@ -11,6 +11,8 @@ import { money, Icon } from '../components/ui.jsx';
 import ImportExport from '../components/ImportExport.jsx';
 import { REMINDER_TIMES, DEFAULT_TIME, icsPath, googleCalendarUrl } from '../lib/reminder.js';
 import { isAndroid } from '../lib/inapp.js';
+import { ScheduleEditor, ScheduleReminder } from '../components/Mission.jsx';
+import { getSchedule } from '../lib/mission.js';
 
 export default function SettingsPage({ user }) {
   useEffect(() => {
@@ -24,7 +26,7 @@ export default function SettingsPage({ user }) {
       </header>
       <nav className="settings-nav">
         {[
-          ['reminder', '每天提醒'], ['accounts', '帳戶'], ['budget', '預算'], ['fixed', '固定支出'], ['reconcile', '對帳'],
+          ['reminder', '每天提醒'], ['english', '英文課表'], ['accounts', '帳戶'], ['budget', '預算'], ['fixed', '固定支出'], ['reconcile', '對帳'],
           ['habits', '每日固定'], ['recurring', '每週固定'], ['import', '匯入／匯出'], ['errors', '錯誤紀錄'],
         ].map(([id, l]) => (
           <a key={id} href={`#${id}`} onClick={(e) => { e.preventDefault(); document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' }); }}>
@@ -33,6 +35,7 @@ export default function SettingsPage({ user }) {
         ))}
       </nav>
       <ReminderSettings />
+      <EnglishScheduleSettings />
       <AccountsSettings />
       <BudgetSettings />
       <FixedSettings />
@@ -60,6 +63,18 @@ export default function SettingsPage({ user }) {
 let installEvent = null;
 if (typeof window !== 'undefined') {
   window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); installEvent = e; });
+}
+
+function EnglishScheduleSettings() {
+  const { englishSchedule } = useData();
+  return (
+    <section className="section" id="english">
+      <h2>英文課表</h2>
+      <p className="muted">每天的英文任務照這張表派。首頁和「學習 › 英文 › 任務」會顯示今天要做的事。</p>
+      <ScheduleEditor />
+      <ScheduleReminder schedule={getSchedule(englishSchedule)} />
+    </section>
+  );
 }
 
 function ReminderSettings() {
