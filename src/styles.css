@@ -1111,6 +1111,40 @@ label.opt { display: inline-flex; align-items: center; gap: 0.25rem; cursor: poi
 .toeic-weekday { display: flex; flex-direction: column; gap: 0.6rem; }
 .toeic-weekday .card p { margin: 0.2rem 0; }
 .toeic-weekday textarea { width: 100%; }
+/* 我的英文錯誤庫（英文 › 口說） */
+.bank { display: flex; flex-direction: column; gap: 0.6rem; }
+.bank-title { margin: 0.2rem 0; font-size: 1.2rem; }
+.seg.five { grid-template-columns: repeat(5, 1fr); }
+.seg.five button { padding: 0.45rem 0.1rem; font-size: 0.88rem; }
+.bank-entry { background: var(--surface-solid); }
+.bank-empty { display: flex; flex-direction: column; gap: 0.4rem; align-items: flex-start; }
+.bank-empty p { margin: 0; }
+.bank-retry { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; background: var(--warn-soft); }
+.bank-retry p { margin: 0.2rem 0 0; }
+.bank-row, .bank-phrase { cursor: pointer; align-items: flex-start; }
+.bank-row .task-body, .bank-phrase .task-body, .bank-preview .task-body { display: flex; flex-direction: column; gap: 0.15rem; min-width: 0; overflow-wrap: anywhere; }
+.bank-srs { flex-shrink: 0; align-self: center; }
+.bank-preview li { align-items: flex-start; gap: 0.5rem; }
+.bank-preview input[type='checkbox'] { margin-top: 0.25rem; flex-shrink: 0; width: 1.1rem; height: 1.1rem; }
+.bank-preview .st-invalid { background: var(--over-soft); }
+.bank-preview .st-same { opacity: 0.6; }
+.bank-session { display: flex; flex-direction: column; gap: 0.2rem; }
+.bank-detail { display: flex; flex-direction: column; gap: 0.3rem; overflow-wrap: anywhere; }
+.bank-detail p { margin: 0; }
+.bank-detail .btn { align-self: flex-start; margin-top: 0.4rem; }
+.bank-inferred { border: 2px dashed var(--line); border-radius: 10px; padding: 0.3rem 0.5rem; }
+.bank-bars { list-style: none; margin: 0.4rem 0; padding: 0; display: flex; flex-direction: column; gap: 0.35rem; }
+.bank-bars li { display: grid; grid-template-columns: 5.5em 1fr 2em; align-items: center; gap: 0.4rem; font-size: 0.9rem; }
+.bank-bar { height: 0.9rem; border: 2px solid var(--line); border-radius: 999px; background: var(--surface-2); overflow: hidden; }
+.bank-bar span { display: block; height: 100%; background: var(--mustard); }
+.bank-retry-card { display: flex; flex-direction: column; gap: 0.5rem; }
+.bank-retry-card p { margin: 0; overflow-wrap: anywhere; }
+.bank-retry-card textarea { width: 100%; box-sizing: border-box; border: 2px solid var(--line); border-radius: 10px; padding: 0.5rem; font: inherit; background: var(--surface-solid); color: var(--text); margin-top: 0.2rem; }
+.bank-retry-card label.fb-label { display: flex; flex-direction: column; }
+.bank-compare { display: flex; flex-direction: column; gap: 0.35rem; border-top: 2px dashed var(--soft-line); padding-top: 0.5rem; }
+.big-line { font-size: 1.1rem; }
+.warn-text { color: var(--warn); }
+.hint.pre { white-space: pre-wrap; }
 
 /* ---- 每日英文任務 ---- */
 .mission { display: flex; flex-direction: column; gap: 0.7rem; }

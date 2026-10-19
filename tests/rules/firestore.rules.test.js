@@ -29,6 +29,14 @@ describe('Firestore 安全規則', () => {
     await assertFails(getDocs(collection(db, 'users/me/expenses')));
     await assertFails(setDoc(doc(db, 'users/me/tasks/t1'), { title: 'x' }));
   });
+  it('錯誤庫：口說匯入紀錄只有自己能讀寫', async () => {
+    const mine = env.authenticatedContext('me').firestore();
+    await assertSucceeds(setDoc(doc(mine, 'users/me/speakImports/imp-x'), { transcript: 'hi' }));
+    await assertSucceeds(setDoc(doc(mine, 'users/me/englishItems/err-x'), { bank: 'error', front: 'a' }));
+    const other = env.authenticatedContext('someone-else').firestore();
+    await assertFails(getDoc(doc(other, 'users/me/speakImports/imp-x')));
+    await assertFails(setDoc(doc(other, 'users/me/englishItems/err-x'), { bank: 'error' }));
+  });
   it('沒登入全部拒絕', async () => {
     const db = env.unauthenticatedContext().firestore();
     await assertFails(getDoc(doc(db, 'users/me/expenses/e1')));
