@@ -27,7 +27,7 @@ async function copyText(text) {
 }
 
 // 只在英文頁讀 toeic、toeicMistakes 兩個集合（最多幾十份），不放進每次開 app 的全域訂閱
-function useToeic() {
+export function useToeic() {
   const { uid, api } = useData();
   const [docs, setDocs] = useState(null);
   const [mistakes, setMistakes] = useState(null);
