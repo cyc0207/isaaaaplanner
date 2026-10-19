@@ -3,7 +3,7 @@ import {
   parseImportText, validateImport, buildBankPreview, bankImportOps, bankStats, pickRetry, inTranscript, sessionDocId, hash, norm,
 } from '../src/lib/errorBank.js';
 import { dueItems, practicable, review, reviewGrade } from '../src/lib/english.js';
-import { SEED_IMPORT, SAMPLE_IMPORT } from '../src/data/errorBankSeed.js';
+import { SEED_IMPORT, SEED_IMPORT_1019, SAMPLE_IMPORT } from '../src/data/errorBankSeed.js';
 
 // 模擬 api.batch 寫進 englishItems / speakImports
 function apply(ops, store) {
@@ -139,6 +139,22 @@ describe('錯誤庫：和原本的 Leitner 複習接在一起', () => {
     expect(due.map((x) => x.occurrences[0].externalId.split(':')[1])).toEqual(SEED_IMPORT.reviewRecommendation.priorityErrorIds);
     expect(dueItems(items, '2026-10-19').length).toBe(15);
     expect(dueItems(items, '2026-12-31').length).toBe(SEED_IMPORT.errors.length + SEED_IMPORT.reusableExpressions.length);
+  });
+  it('10/19 資料（topErrorIds、dailyLimit）接在 10/18 後面匯入，優先項目今天先複習', () => {
+    const store = {};
+    runImport(SEED_IMPORT, store);
+    const { p } = runImport(SEED_IMPORT_1019, store);
+    expect(p.fatal).toEqual([]);
+    expect(p.errors.filter((r) => r.selected).length).toBeGreaterThan(0);
+    const items = itemsOf(store);
+    const of1019 = items.filter((i) => i.bank === 'error' && i.occurrences.some((o) => o.externalId.startsWith(SEED_IMPORT_1019.datasetId)));
+    expect(of1019.length).toBe(p.errors.filter((r) => r.selected).length);
+    const top = SEED_IMPORT_1019.reviewRecommendation.topErrorIds;
+    const firstIds = dueItems(items, '2026-10-19').flatMap((x) => x.occurrences.map((o) => o.externalId.split(':')[1]));
+    expect(top.every((id) => firstIds.includes(id) || !of1019.some((c) => c.occurrences.some((o) => o.externalId.endsWith(id))))).toBe(true);
+    // 再匯入一次不會多卡
+    const again = runImport(SEED_IMPORT_1019, store);
+    expect(again.ops).toEqual([]);
   });
   it('沒勾加入複習的片語不進複習', () => {
     expect(practicable({ type: 'phrase', front: 'x', srs: false })).toBe(false);

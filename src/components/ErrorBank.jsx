@@ -10,7 +10,7 @@ import {
   bankPrompt, ERROR_CATEGORIES, EVIDENCE, PHRASE_TAGS, ROW_STATUS, STATUS, bankErrors, bankImportOps, bankPhrases, bankStats, bankStatus,
   buildBankPreview, counts, parseImportText, pickRetry, sessionDocId, validateImport,
 } from '../lib/errorBank.js';
-import { SAMPLE_IMPORT, SEED_IMPORT } from '../data/errorBankSeed.js';
+import { SAMPLE_IMPORT, SEED_IMPORT, SEED_IMPORT_1019 } from '../data/errorBankSeed.js';
 import { Sheet } from './ui.jsx';
 
 // 匯入過的練習紀錄（原始逐字稿）：只在錯誤庫打開時讀
@@ -66,7 +66,7 @@ export default function ErrorBank({ onBack, startView = 'errors' }) {
       {!errors.length && !bankPhrases(englishItems).length && view !== 'import' && (
         <div className="card bank-empty">
           <p className="strong">錯誤庫還是空的。</p>
-          <p className="small muted">先到「匯入」貼上 ChatGPT 的批改 JSON，或載入 10/18 的口說資料。</p>
+          <p className="small muted">先到「匯入」貼上 ChatGPT 的批改 JSON，或載入 10/18、10/19 的口說資料。</p>
           <button className="btn primary small" onClick={() => setView('import')}>
             去匯入
           </button>
@@ -531,6 +531,9 @@ function ImportPanel({ onDone }) {
           </label>
           <button className="btn" onClick={() => load(SEED_IMPORT)} disabled={busy}>
             載入 10/18 口說資料（32 個錯誤、16 個片語）
+          </button>
+          <button className="btn" onClick={() => load(SEED_IMPORT_1019)} disabled={busy}>
+            載入 10/19 口說資料（34 個錯誤、12 個片語）
           </button>
         </div>
         {result && (

@@ -107,7 +107,9 @@ export function fromExchange(obj) {
   const topicTitle = Object.fromEntries(topics.map((x) => [x?.id, x?.title]));
   const ext = (id) => (id ? `${obj.datasetId}:${id}` : '');
   const rec = obj.reviewRecommendation || {};
-  const prio = Array.isArray(rec.priorityErrorIds) ? rec.priorityErrorIds : [];
+  // 10/18 版叫 priorityErrorIds／dailyNewCardLimit，10/19 版叫 topErrorIds／dailyLimit，兩種都收
+  const prio = [rec.priorityErrorIds, rec.topErrorIds].find(Array.isArray) || [];
+  const perDay = rec.dailyNewCardLimit ?? rec.dailyLimit;
   return {
     schemaVersion: SCHEMA_VERSION,
     format: 'exchange',
@@ -123,7 +125,7 @@ export function fromExchange(obj) {
       importNotes: [obj.notesZh, s0.rawTranscriptNoteZh].filter(Boolean),
       extraSessions: ss.length - 1,
     },
-    newPerDay: Number.isInteger(rec.dailyNewCardLimit) && rec.dailyNewCardLimit > 0 ? rec.dailyNewCardLimit : 0,
+    newPerDay: Number.isInteger(perDay) && perDay > 0 ? perDay : 0,
     errors: (Array.isArray(obj.errors) ? obj.errors : []).map((e) => ({
       ...e,
       externalId: ext(e?.id),
