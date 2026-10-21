@@ -7,6 +7,10 @@ import {
   emptyJob, filterJobs, planJobImport, findSameJob, jobUrlKey, linkTypeOf, guessLinkType, officialUrlError, isJobClosed, orTBD,
 } from '../lib/jobs.js';
 import { JOBS_2026_10_21, JOB_BATCH_ID, DEFAULT_JOB_PROFILE } from '../data/jobs20261021.js';
+import { assessJob, jobMailPrompt, VERDICT_CLASS } from '../lib/jobFit.js';
+import { useGmailSync, SyncButton, QueryEditor } from './Gmail.jsx';
+import { gmailLink } from '../lib/gmail.js';
+import { auth } from '../firebase.js';
 
 const jobLabel = (it) => [it.company, it.title].filter(Boolean).join('｜') || '（沒有名稱）';
 const isHttp = (u) => /^https?:\/\//.test(u || '');
@@ -165,6 +169,25 @@ function JobBatch({ batch, batchId, title }) {
 }
 
 export function JobBoard() {
+  const { mail } = useData();
+  const [view, setView] = useState('list');
+  const newMail = mail.filter((m) => m.box === 'jobs' && m.status === 'new').length;
+  return (
+    <div className="job-board">
+      <div className="seg two">
+        <button className={view === 'list' ? 'on' : ''} onClick={() => setView('list')}>
+          職缺清單
+        </button>
+        <button className={view === 'mail' ? 'on' : ''} onClick={() => setView('mail')}>
+          求職信{newMail > 0 && <span className="num">（{newMail}）</span>}
+        </button>
+      </div>
+      {view === 'mail' ? <JobMail /> : <JobList />}
+    </div>
+  );
+}
+
+function JobList() {
   const { inbox } = useData();
   const [track, setTrack] = useState('all');
   const [status, setStatus] = useState('all');
@@ -179,7 +202,7 @@ export function JobBoard() {
   const trackTabs = [['all', '全部'], ...TRACK_ORDER.map((k) => [k, JOB_TRACKS[k]]), ...(count('none') ? [['none', '未分類']] : [])];
 
   return (
-    <div className="job-board">
+    <>
       <JobProfile />
       <JobBatch batch={JOBS_2026_10_21} batchId={JOB_BATCH_ID} title="2026/10/21 整理的職缺" />
       <p className="muted small">職缺資訊是整理當下的狀況，不保證仍開放，投之前先點連結確認。這裡只記錄，不會幫你寄信或投遞。</p>
@@ -230,6 +253,126 @@ export function JobBoard() {
         ))}
       </ul>
       {editing && <JobEditor item={editing} onClose={() => setEditing(null)} />}
+    </>
+  );
+}
+
+// 求職信：從 Gmail 收進來，用關鍵字對照求職條件給初步判斷；要投的再加進職缺清單
+function JobMail() {
+  const { mail, inbox, jobSettings, api } = useData();
+  const g = useGmailSync();
+  const [showDone, setShowDone] = useState(false);
+  const [copied, setCopied] = useState('');
+  const email = auth.currentUser?.email;
+  const profile = jobSettings.profile ?? DEFAULT_JOB_PROFILE;
+  const all = mail.filter((m) => m.box === 'jobs');
+  const shown = all.filter((m) => (showDone ? m.status !== 'new' : m.status === 'new'));
+
+  const addJob = (m, url) => {
+    const same = findSameJob({ url }, inbox);
+    if (same) return;
+    api.add('inbox', {
+      ...emptyJob(),
+      title: m.subject,
+      url,
+      urlType: guessLinkType(url),
+      deadline: m.guess || '',
+      asOf: m.date,
+      note: `來自求職信：${m.from}（${m.date}）。公司、職稱請點連結確認後補上。`,
+    });
+    // 一封信有好幾個職缺時，全部處理完再自己按略過
+    if ((m.jobLinks || []).length <= 1) api.update(`mail/${m.id}`, { status: 'added' });
+  };
+
+  const copy = async (m) => {
+    const text = jobMailPrompt(profile, m);
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(m.id);
+    } catch {
+      window.prompt('複製下面這段', text);
+    }
+  };
+
+  return (
+    <div className="gmail-box job-mail">
+      <div className="card">
+        <SyncButton g={g} />
+        <QueryEditor queries={g.queries} />
+      </div>
+      <p className="muted small">判斷是用關鍵字對照你的求職條件（到職時間、每週天數、方向、年資、英文、SQL），只是初步參考；要細看就按「複製給 Claude」。這裡只讀信，不會回信或投遞。</p>
+      <div className="row between gmail-head">
+        <span className="muted small">{showDone ? '已處理的信' : `${shown.length} 封還沒看`}</span>
+        <button className="link small" onClick={() => setShowDone(!showDone)}>
+          {showDone ? '看還沒處理的' : '看已處理的'}
+        </button>
+      </div>
+      {!shown.length && <p className="muted">{g.lastSync ? '這裡是空的。' : '按「連結 Gmail」後，職缺通知信（LinkedIn、104、Cake、Yourator 等）會出現在這裡。'}</p>}
+      <ul className="list">
+        {shown.map((m) => {
+          const a = assessJob(`${m.subject}\n${m.body || m.snippet || ''}`);
+          return (
+            <li key={m.id} className="mail-row job-mail-row">
+              <a className="mail-subject" href={gmailLink(m, email)} target="_blank" rel="noopener noreferrer">
+                {m.subject}
+              </a>
+              <div className="task-meta">
+                <span>{m.from}</span>
+                <span>{m.date}</span>
+                {m.guess && <span className="chip warn">可能截止 {shortLabel(m.guess)}</span>}
+              </div>
+              <div className="job-verdict">
+                <span className={`chip verdict ${VERDICT_CLASS[a.verdict]}`}>初步判斷：{a.verdict}</span>
+              </div>
+              <ul className="job-reasons small">
+                {a.pros.map((x) => (
+                  <li key={x} className="pro">＋ {x}</li>
+                ))}
+                {a.cons.map((x) => (
+                  <li key={x} className="con">－ {x}</li>
+                ))}
+                {a.unknown.length > 0 && <li className="muted">待確認：{a.unknown.join('、')}</li>}
+              </ul>
+              {(m.jobLinks || []).length > 0 && (
+                <ul className="job-mail-links small">
+                  {m.jobLinks.map((u) => {
+                    const same = findSameJob({ url: u }, inbox);
+                    return (
+                      <li key={u} className="row between gap">
+                        <ExtLink href={u}>{LINK_TYPES[guessLinkType(u)] || '職缺頁'}{/linkedin/.test(u) ? ` #${jobUrlKey(u).split(':')[1]}` : ''} →</ExtLink>
+                        {same ? (
+                          <span className="muted small">已在清單{same.track === 'excluded' ? '（你排除了）' : ''}：{jobLabel(same)}</span>
+                        ) : (
+                          <button className="btn small" onClick={() => addJob(m, u)}>
+                            加進職缺清單
+                          </button>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+              <div className="row gap wrap">
+                <button className="btn small" onClick={() => copy(m)}>
+                  {copied === m.id ? '已複製' : '複製給 Claude 細看'}
+                </button>
+                {m.status === 'new' ? (
+                  <button className="btn small" onClick={() => api.update(`mail/${m.id}`, { status: 'skipped' })}>
+                    不投，略過
+                  </button>
+                ) : (
+                  <>
+                    <span className="chip">{m.status === 'added' ? '已加進清單' : '已略過'}</span>
+                    <button className="link small" onClick={() => api.update(`mail/${m.id}`, { status: 'new' })}>
+                      放回來
+                    </button>
+                  </>
+                )}
+              </div>
+            </li>
+          );
+        })}
+      </ul>
     </div>
   );
 }
