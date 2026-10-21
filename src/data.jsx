@@ -174,6 +174,7 @@ export function DataProvider({ uid, children }) {
       englishJournal: byId('englishJournal'),
       englishSettings: settings.english || {},
       englishSchedule: settings.englishSchedule || null,
+      wordLabSettings: settings.wordLab || {},
       body: settings.body || null,
       dismissed: settings.suggest?.dismissed || {},
       // 已結帳的月份，改紀錄前先確認一次
