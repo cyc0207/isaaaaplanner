@@ -1164,3 +1164,38 @@ label.opt { display: inline-flex; align-items: center; gap: 0.25rem; cursor: poi
   .mission-home, .mission-today { background: #1f3a38; }
   .btn.on { color: #2b2118; }
 }
+
+/* 求職追蹤 */
+.job-board { display: flex; flex-direction: column; gap: 0.7rem; }
+.job-board > .tabs { margin-bottom: 0; }
+.job-profile summary { cursor: pointer; font-weight: 700; }
+.job-profile-text { white-space: pre-wrap; font-family: var(--sans); font-size: 0.88rem; margin: 0.5rem 0; }
+.job-batch { background: var(--warn-soft); display: flex; flex-direction: column; gap: 0.3rem; align-items: flex-start; }
+.job-batch p { margin: 0; }
+.job-batch-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.3rem; }
+.job-filters { align-items: flex-end; }
+.job-filters .inline { margin: 0; }
+.job-add { margin-top: 0; }
+.job-list { display: flex; flex-direction: column; gap: 0.7rem; }
+.job-card { cursor: pointer; list-style: none; padding: 0.7rem 0.8rem; background: var(--surface-solid); border: 2px solid var(--line); border-radius: 14px; box-shadow: 3px 3px 0 var(--shadow); display: flex; flex-direction: column; gap: 0.4rem; }
+.job-card.closed { background: var(--surface-2); }
+.job-top { display: flex; gap: 0.6rem; align-items: flex-start; }
+.job-pri { flex: none; min-width: 2.4rem; text-align: center; font-size: 1.5rem; line-height: 1.1; background: var(--mustard); color: #2b2118; border: 2px solid var(--line); border-radius: 8px; }
+.job-name { min-width: 0; }
+.job-company { font-weight: 700; }
+.job-title { font-size: 0.92rem; }
+.chip.track-intern { color: var(--accent); border-color: var(--accent); }
+.chip.track-fulltime { background: var(--teal); color: #fff8ec; border-color: var(--teal); }
+.chip.track-upskill { color: var(--warn); border-color: var(--warn); }
+.chip.track-excluded, .chip.track-none { color: var(--muted); border-color: var(--muted); }
+.job-facts { display: grid; grid-template-columns: auto 1fr; gap: 0.15rem 0.6rem; margin: 0; font-size: 0.85rem; }
+.job-facts dt { color: var(--muted); font-weight: 700; }
+.job-facts dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+.job-links { display: flex; flex-wrap: wrap; gap: 0.2rem 0.9rem; align-items: center; }
+.job-form .row .mini { min-width: 7rem; flex: 1; }
+.form-field { display: flex; flex-direction: column; gap: 0.3rem; font-size: 0.85rem; color: var(--muted); }
+.job-attach { color: var(--text); }
+.job-attach .list li { padding: 0.2rem 0; }
+.job-attach input { min-width: 9rem; }
+.danger-text { color: var(--over); }
+.job-more summary { cursor: pointer; font-weight: 700; font-size: 0.88rem; padding: 0.3rem 0; }

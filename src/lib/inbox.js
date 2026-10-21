@@ -1,17 +1,19 @@
 import { parseCSVObjects } from './csv.js';
 import { isValidDateStr } from './date.js';
 import { extractCSV } from './english.js';
+import { APPLY_STATUSES, LEGACY_APPLY_STATUSES, JOB_CLOSED_STATUSES, emptyJob } from './jobs.js';
 
-export const KINDS = { competition: '比賽', resume: '履歷', other: '其他' };
+export const KINDS = { competition: '比賽', resume: '求職', other: '其他' };
 
 export const STATUSES = {
   competition: ['考慮中', '要報', '已報', '放棄'],
-  resume: ['要投', '已投', '面試', '結果'],
+  resume: APPLY_STATUSES,
   other: ['考慮中', '要做', '完成', '放棄'],
 };
 
-// 已經結束的不再出現在行事曆
-const CLOSED = new Set(['放棄', '結果', '完成']);
+// 已經結束的不再出現在行事曆（求職：錄取、未錄取、不再考慮、排除的職缺；舊的「結果」也算）
+const CLOSED = new Set(['放棄', '結果', '完成', ...JOB_CLOSED_STATUSES]);
+export const isClosed = (it) => CLOSED.has(it.status) || (it.kind === 'resume' && it.track === 'excluded');
 
 export const isPending = (item) => item.status === '考慮中';
 
@@ -19,12 +21,12 @@ export const isPending = (item) => item.status === '考慮中';
 export function inboxDeadlines(inbox) {
   const out = [];
   for (const it of inbox) {
-    if (CLOSED.has(it.status)) continue;
+    if (isClosed(it)) continue;
     const kind = KINDS[it.kind] || '其他';
     if (it.deadline) {
       out.push({
         id: `inbox:${it.id}:deadline`, inboxId: it.id, fromInbox: true, date: it.deadline,
-        title: `${it.kind === 'competition' ? '報名截止' : '截止'}：${it.title}`, project: kind, note: '', remindDayBefore: true, tentative: false,
+        title: `${it.kind === 'competition' ? '報名截止' : '截止'}：${it.kind === 'resume' && it.company ? `${it.company}｜` : ''}${it.title}`, project: kind, note: '', remindDayBefore: true, tentative: false,
       });
     }
     if (it.kind === 'competition' && it.submitDate) {
@@ -38,6 +40,7 @@ export function inboxDeadlines(inbox) {
 }
 
 export function emptyItem(kind = 'competition') {
+  if (kind === 'resume') return emptyJob();
   return { kind, title: '', company: '', deadline: '', submitDate: '', url: '', status: STATUSES[kind][0], canReuseProject: false, note: '' };
 }
 
@@ -87,7 +90,7 @@ export function buildInboxPreview(text, existing) {
       }
       return d;
     };
-    const statuses = STATUSES[kind] || STATUSES.other;
+    const statuses = kind === 'resume' ? [...APPLY_STATUSES, ...LEGACY_APPLY_STATUSES] : STATUSES[kind] || STATUSES.other;
     const row = {
       line: i + 2,
       rawKind: r.kind,
@@ -132,7 +135,7 @@ kind,title,company,deadline,submitDate,url,status,note
 - deadline：報名或投遞截止日，格式 YYYY-MM-DD
 - submitDate：比賽的繳件日，格式 YYYY-MM-DD，沒有就留空
 - url：官方網址
-- status：competition 只能填 考慮中、要報、已報、放棄；resume 只能填 要投、已投、面試、結果；other 只能填 考慮中、要做、完成、放棄
+- status：competition 只能填 考慮中、要報、已報、放棄；resume 只能填 未確認、準備中、已投遞、面試中、錄取、未錄取、不再考慮（不知道就填 未確認）；other 只能填 考慮中、要做、完成、放棄
 - note：補充，例如可以用哪個現有專題去投、需要準備什麼
 欄位裡有逗號、換行或雙引號時，整格用雙引號包起來，裡面的雙引號寫成兩個。
 
