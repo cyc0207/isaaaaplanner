@@ -13,6 +13,7 @@ import ToeicCard from '../components/ToeicPlan.jsx';
 import AffixCards from '../components/AffixCards.jsx';
 import SpeakCoach from '../components/SpeakCoach.jsx';
 import { MissionTab } from '../components/Mission.jsx';
+import WordLab from '../components/WordLab.jsx';
 import { Reader, Articles, PasteRead } from '../components/Reader.jsx';
 import { StudyNav } from './StudyPage.jsx';
 import { useGmailSync, SyncButton, QueryEditor } from '../components/Gmail.jsx';
@@ -20,6 +21,7 @@ import { useGmailSync, SyncButton, QueryEditor } from '../components/Gmail.jsx';
 const TABS = [
   ['mission', '任務'],
   ['practice', '今天'],
+  ['lab', '單字'],
   ['speak', '口說'],
   ['flash', '字卡'],
   ['letters', '閱讀'],
@@ -55,6 +57,7 @@ export default function EnglishPage() {
         </>
       )}
       {tab === 'mission' && <MissionTab />}
+      {tab === 'lab' && <WordLab />}
       {tab === 'speak' && (
         <SpeakCoach
           key={params.get('mission') || 'coach'}

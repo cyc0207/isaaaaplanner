@@ -1164,3 +1164,55 @@ label.opt { display: inline-flex; align-items: center; gap: 0.25rem; cursor: poi
   .mission-home, .mission-today { background: #1f3a38; }
   .btn.on { color: #2b2118; }
 }
+
+/* ---- 單字實驗室 Word Lab ---- */
+.wl { display: flex; flex-direction: column; gap: 0.7rem; }
+.wl p { margin: 0.2rem 0; }
+.wl-mode .seg { min-width: 220px; }
+.wl-new { align-items: center; margin-top: 0.4rem; }
+.wl-new .num { min-width: 1.5rem; text-align: center; font-family: var(--pixel); font-size: 1.4rem; }
+.wl-warn { background: var(--warn-soft); border-left: 8px solid var(--mustard); }
+.wl-done { background: var(--surface-solid); border-left: 8px solid var(--teal); font-weight: 700; }
+.wl-row { cursor: pointer; align-items: center; }
+.wl-head { border-left: 8px solid var(--accent); }
+.wl-word { font-family: 'Noto Serif TC', var(--sans); font-size: 1.6rem; margin: 0; }
+.wl-word.small-word { font-size: 1.15rem; }
+.wl-steps { display: flex; gap: 0.3rem; list-style: none; padding: 0; margin: 0.5rem 0; }
+.wl-steps li { flex: 1; text-align: center; border: 2px solid var(--line); border-radius: 999px; background: var(--surface-solid); font-size: 0.85rem; }
+.wl-steps li .num { font-family: var(--pixel); font-size: 1.15rem; }
+.wl-steps li.done { background: var(--teal); color: #fff8ec; }
+.wl-steps li.now { background: var(--mustard); color: #2b2118; box-shadow: 2px 2px 0 var(--shadow); }
+.wl-q { display: flex; flex-direction: column; gap: 0.45rem; border-left: 8px solid var(--soft-line); }
+.wl-q.ok { border-left-color: var(--teal); }
+.wl-q.wrong { border-left-color: var(--accent); }
+.wl-prompt { white-space: pre-wrap; font-weight: 700; font-size: 1.02rem; }
+.btn.opt.right { background: var(--teal); border-color: var(--teal); color: #fff8ec; }
+.btn.opt.mine { background: var(--over-soft); text-decoration: line-through; }
+.wl-q .btn.opt:disabled { opacity: 0.55; }
+.wl-explain { border-top: 2px dashed var(--soft-line); padding-top: 0.45rem; display: flex; flex-direction: column; gap: 0.3rem; align-items: flex-start; }
+.wl-ex { background: var(--surface-2); border-radius: 10px; padding: 0.35rem 0.55rem; }
+.wl-examples ul { margin: 0.4rem 0 0; padding-left: 0; list-style: none; display: flex; flex-direction: column; gap: 0.45rem; }
+.wl-examples .chip { font-size: 0.72rem; }
+.wl-family p { margin: 0.15rem 0; }
+.wl-next { display: flex; flex-direction: column; gap: 0.4rem; }
+.wl-sent { display: flex; flex-direction: column; gap: 0.4rem; }
+.wl-sent textarea, .wl-paste textarea { width: 100%; box-sizing: border-box; }
+.wl-versions { margin: 0; padding-left: 1.3rem; }
+.wl-model { background: var(--surface-2); border-radius: 10px; padding: 0.4rem 0.6rem; }
+.wl-fbs { display: flex; flex-direction: column; gap: 0.35rem; }
+.wl-fb { border: 2px solid var(--soft-line); border-radius: 12px; padding: 0.35rem 0.6rem; background: var(--surface-solid); }
+.wl-fb.ok { border-color: var(--teal); }
+.wl-fb.fix { border-color: var(--accent); }
+.wl-raw { white-space: pre-wrap; max-height: 12rem; overflow: auto; }
+.wl-paste { border: 2px dashed var(--soft-line); border-radius: 12px; padding: 0.45rem 0.6rem; display: flex; flex-direction: column; gap: 0.35rem; }
+.wl-paste[open] > * + * { margin-top: 0.35rem; }
+.wl-skills { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.4rem; margin-top: 0.4rem; }
+.wl-skills > div { border: 2px solid var(--line); border-radius: 12px; padding: 0.35rem 0.5rem; background: var(--surface-solid); display: flex; flex-direction: column; gap: 0.1rem; min-width: 0; }
+.wl-skills b { font-family: var(--pixel); font-size: 1.2rem; font-weight: 400; }
+.wl-skills-note { grid-column: 1 / -1; }
+.wl-stat { cursor: pointer; }
+.wl-log { list-style: none; padding: 0.5rem 0.7rem; margin: 0; display: flex; flex-direction: column; gap: 0.2rem; }
+.wl-log li.wrong { color: var(--accent); }
+.wl-review summary { cursor: pointer; }
+.wl-all { margin-top: 0.6rem; }
+@media (min-width: 640px) { .wl-skills { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
