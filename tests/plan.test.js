@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { habitStreak, todayTasks, pendingWeekly, nextDeadline, deadlineReminders, monthToClose, isReconcileDay, fixedDue, captureTasks, splitCapture } from '../src/lib/plan.js';
 import { weekday } from '../src/lib/date.js';
-import { seedDocs } from '../src/lib/seed.js';
 
 const H = '英文 15 分鐘';
 const logs = (days) => Object.fromEntries(days.map((d) => [d, { done: { [H]: true } }]));
@@ -45,8 +44,12 @@ describe('提醒', () => {
     expect(monthToClose({}, '2026-10-11', '2026-10')).toBeNull();
   });
   it('前一天提醒的期限、暫定期限倒數', () => {
-    const d = seedDocs('2026-10-11').filter((x) => x.path.startsWith('deadlines/')).map((x) => x.data);
-    expect(deadlineReminders(d, '2026-10-14')[0]).toMatchObject({ title: '企業倫理實體課', when: '明天' });
+    const d = [
+      { title: '實體課', date: '2026-10-15', remindDayBefore: true, tentative: false },
+      { title: '期末報告', date: '2026-10-30', remindDayBefore: false, tentative: false },
+      { title: '期末 Presentation', date: '2026-12-01', remindDayBefore: false, tentative: true },
+    ];
+    expect(deadlineReminders(d, '2026-10-14')[0]).toMatchObject({ title: '實體課', when: '明天' });
     expect(nextDeadline(d, '2026-11-17')).toMatchObject({ tentative: true, daysLeft: 14 });
   });
   it('對帳日預設每週日', () => {

@@ -194,7 +194,8 @@ export function DeadlineRow({ d, day, onEdit, onDelete }) {
 }
 
 export function useProjects(tasks, deadlines) {
-  const set = new Set(['專題報告', '育成提案', '英文', '實習報告', '履歷', 'DecorateMe', '企業倫理']);
+  // 預設只放通用的；自己的專題會從任務、截止日裡自動長出來
+  const set = new Set(['英文', '履歷']);
   [...tasks, ...deadlines].forEach((t) => t.project && set.add(t.project));
   return [...set];
 }
