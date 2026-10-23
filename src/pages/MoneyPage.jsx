@@ -10,6 +10,7 @@ import { fixedPaidId } from '../lib/plan.js';
 import { money, Bar, Sheet, Icon } from '../components/ui.jsx';
 import { payFixed } from '../components/editors.jsx';
 import InvestDashboard from '../components/InvestDashboard.jsx';
+import Town from '../components/Town.jsx';
 import { BudgetSuggestions, BudgetChangeLog } from '../components/Suggestions.jsx';
 import { SUGARS, SIZES, nextMeal, SLOTS, mealExpense } from '../lib/meals.js';
 
@@ -19,6 +20,7 @@ const TABS = [
   ['accounts', '帳戶'],
   ['fixed', '固定支出'],
   ['invest', '投資'],
+  ['town', '小鎮'],
   ['alloc', '薪資分配'],
 ];
 
@@ -51,6 +53,7 @@ export default function MoneyPage() {
       {tab === 'accounts' && <Accounts />}
       {tab === 'fixed' && <Fixed />}
       {tab === 'invest' && <InvestDashboard />}
+      {tab === 'town' && <Town />}
       {tab === 'alloc' && <Allocation />}
     </div>
   );

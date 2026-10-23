@@ -1164,3 +1164,27 @@ label.opt { display: inline-flex; align-items: center; gap: 0.25rem; cursor: poi
   .mission-home, .mission-today { background: #1f3a38; }
   .btn.on { color: #2b2118; }
 }
+
+/* 牛仔小鎮（記帳 › 小鎮）：桃紅天空的浮空沙漠島 */
+.town-scene { --town-sky: #ffd6e7; background: var(--town-sky); border: 2px solid var(--line); box-shadow: 4px 4px 0 var(--shadow); padding: 0.5rem 0.5rem 0.8rem; text-align: center; }
+.town-svg { display: block; width: 100%; max-width: 420px; height: auto; margin: 0 auto; }
+.town-worth { color: #2b2118; }
+.town-worth .big { font-size: 2.4rem; line-height: 1; }
+.town-worth .label { font-size: 0.8rem; color: #6b4a3a; }
+.town-badge { display: inline-block; font-weight: 900; font-size: 0.85rem; background: var(--accent); color: var(--surface-solid); border: 2px solid var(--line); border-radius: 999px; padding: 0.05rem 0.8rem; box-shadow: 2px 2px 0 var(--shadow); margin-bottom: 0.3rem; }
+.town-weather { margin: 0.7rem 0 0.2rem; font-weight: 700; }
+.town-weather.dust { color: var(--warn); }
+.town-weather.storm { color: var(--over); }
+.town-lots { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.5rem; }
+.town-lot { display: flex; gap: 0.6rem; align-items: center; }
+.town-lot-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.25rem; }
+.town-icon { width: 64px; height: 104px; flex: none; }
+.town-level { font-size: 0.78rem; font-weight: 700; background: var(--teal); color: var(--surface-solid); border: 1.5px solid var(--line); border-radius: 999px; padding: 0 0.5rem; white-space: nowrap; }
+.town-amt { font-size: 1.5rem; line-height: 1; }
+.town-park li { padding: 0.35rem 0; border-bottom: 1px dashed var(--line); gap: 0.5rem; }
+.town-park .over { color: var(--over); }
+@media (prefers-color-scheme: dark) {
+  .town-scene { --town-sky: #4a2338; }
+  .town-worth { color: #f0e3c6; }
+  .town-worth .label { color: #d9b9a6; }
+}
