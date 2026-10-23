@@ -11,6 +11,7 @@ import { money, Icon } from '../components/ui.jsx';
 import ImportExport from '../components/ImportExport.jsx';
 import { REMINDER_TIMES, DEFAULT_TIME, icsPath, googleCalendarUrl } from '../lib/reminder.js';
 import { isAndroid } from '../lib/inapp.js';
+import { forgetDeviceFood } from '../lib/foodlog.js';
 import { ScheduleEditor, ScheduleReminder } from '../components/Mission.jsx';
 import { getSchedule } from '../lib/mission.js';
 
@@ -50,7 +51,7 @@ export default function SettingsPage({ user }) {
       <section className="section">
         <h2>帳號</h2>
         <p className="muted">已登入：{user.email}</p>
-        <button className="btn" onClick={() => signOut(auth)}>
+        <button className="btn" onClick={() => { forgetDeviceFood(); signOut(auth); }}>
           登出
         </button>
         <p className="muted small">測試用：網址後面加 <code>?today=2026-11-01</code> 可以假裝今天是那一天。</p>
