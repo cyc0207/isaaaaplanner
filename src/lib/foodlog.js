@@ -115,6 +115,12 @@ export function todayChoice(now = Date.now()) {
   return null;
 }
 
+// 登出時清掉這台裝置記住的轉盤結果、今天選擇，下一個登入的人才不會帶到上一個人的
+export function forgetDeviceFood() {
+  forgetSpin();
+  forgetChoice();
+}
+
 export function forgetChoice() {
   try {
     localStorage.removeItem(CHOICE_KEY);

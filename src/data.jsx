@@ -3,7 +3,7 @@ import {
   collection, doc, onSnapshot, setDoc, updateDoc, deleteDoc, addDoc, getDoc, writeBatch, serverTimestamp,
 } from 'firebase/firestore';
 import { db } from './firebase.js';
-import { seedDocs, v2SeedDocs } from './lib/seed.js';
+import { seedDocs, v2SeedDocs, LEGACY_PERSONAL_SEED, shouldCleanLegacySeed, isUntouchedSeed } from './lib/seed.js';
 import { inboxDeadlines } from './lib/inbox.js';
 import { today, monthKey } from './lib/date.js';
 import { logError, setErrorUser } from './lib/errlog.js';
@@ -30,9 +30,21 @@ export function useData() {
   return useContext(DataContext);
 }
 
+// 舊版把站長的行程當成初始資料塞給每個新帳號；之後加入的人登入時清掉沒動過的那幾筆
+async function cleanLegacySeed(uid, meta) {
+  if (!shouldCleanLegacySeed(meta)) return;
+  const snaps = await Promise.all(Object.keys(LEGACY_PERSONAL_SEED).map((path) =>
+    getDoc(doc(db, 'users', uid, ...path.split('/'))).then((d) => [path, d])));
+  const b = writeBatch(db);
+  snaps.forEach(([path, d]) => d.exists() && isUntouchedSeed(path, d.data()) && b.delete(d.ref));
+  b.set(doc(db, 'users', uid, 'settings', 'meta'), { seedCleaned: true }, { merge: true });
+  await b.commit();
+}
+
 async function seedIfNeeded(uid) {
   const meta = await getDoc(doc(db, 'users', uid, 'settings', 'meta'));
   if (meta.exists()) {
+    await cleanLegacySeed(uid, meta.data());
     // 第一版的使用者：補上第二版的初始資料（常吃清單範例）
     if ((meta.data().version || 1) >= 2) return;
     const b = writeBatch(db);
