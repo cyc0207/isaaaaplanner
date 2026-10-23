@@ -1,5 +1,5 @@
 // 打勾時噴出幾片小紙片。系統設定「減少動態效果」時不播。
-const COLORS = ['#c4502f', '#e0a526', '#2d6a6a'];
+const COLORS = ['#e8337f', '#e3a15f', '#17958f', '#3d5a94'];
 
 const reduced = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
