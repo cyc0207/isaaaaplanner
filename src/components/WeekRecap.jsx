@@ -8,7 +8,7 @@ import { FORMATS, pickPhotos, gridFor, weekStats } from '../lib/recap.js';
 import { Sheet } from './ui.jsx';
 
 // 西部牛仔配色（和網站一樣，畫在 canvas 上不能用 CSS 變數）
-const C = { bg: '#f7e4d4', dot: '#f2cfc4', ink: '#3b1e1a', paper: '#fff5ec', brick: '#e8337f', mustard: '#e3a15f', teal: '#17958f', muted: '#8a5e52' };
+const C = { bg: '#efe9e1', dot: '#ddd4c8', ink: '#2a211d', paper: '#faf7f1', brick: '#3c5577', mustard: '#d9c3a0', teal: '#4f8a87', muted: '#76695f' };
 const SERIF = "'Noto Serif TC', serif";
 const SANS = "'Noto Sans TC', sans-serif";
 const PIXEL = "'Alfa Slab One', serif";

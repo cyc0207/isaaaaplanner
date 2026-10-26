@@ -69,11 +69,12 @@ function Login({ error, setError }) {
   return (
     <div className="login">
       <svg className="login-hat" viewBox="0 0 120 64" aria-hidden="true">
-        <path d="M4 44c10 10 30 14 56 14s46-4 56-14c-8 2-18 4-28 4H32C22 48 12 46 4 44z" fill="var(--accent)" stroke="var(--line)" strokeWidth="3" strokeLinejoin="round" />
-        <path d="M32 48c-2-14 2-30 10-38 6 4 12 4 18 0 6 4 12 4 18 0 8 8 12 24 10 38z" fill="var(--accent)" stroke="var(--line)" strokeWidth="3" strokeLinejoin="round" />
-        <path d="M33 38h54v8H33z" fill="var(--teal)" stroke="var(--line)" strokeWidth="2.5" />
+        <path d="M4 44c10 10 30 14 56 14s46-4 56-14c-8 2-18 4-28 4H32C22 48 12 46 4 44z" fill="#e8dcc6" stroke="#2a211d" strokeWidth="3" strokeLinejoin="round" />
+        <path d="M32 48c-2-14 2-30 10-38 6 4 12 4 18 0 6 4 12 4 18 0 8 8 12 24 10 38z" fill="#e8dcc6" stroke="#2a211d" strokeWidth="3" strokeLinejoin="round" />
+        <path d="M33 38h54v8H33z" fill="#4a3024" stroke="#2a211d" strokeWidth="2.5" />
+        {[39, 47, 55, 63, 71, 79].map((x) => <circle key={x} cx={x + 1} cy="42" r="2.2" fill="#b9bcc2" stroke="#2a211d" strokeWidth="1" />)}
       </svg>
-      <span className="howdy">Howdy!</span>
+      <span className="howdy">Howdy, cowgirl</span>
       <h1>今天要做什麼？</h1>
       <p className="muted">打開就知道今天的三件事。</p>
       {app ? (
