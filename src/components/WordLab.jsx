@@ -6,6 +6,7 @@ import { today } from '../lib/date.js';
 import { itemKey, newItem, review } from '../lib/english.js';
 import { ENGLISH_HABIT } from '../lib/seed.js';
 import { logError } from '../lib/errlog.js';
+import { canSpeak, speak } from '../lib/speech.js';
 import { CORE_WORDS } from '../data/wordLab.js';
 import {
   STEPS, DONE_STEP, SKILLS, ERROR_TYPES, KIND_LABEL, MODES, BACKLOG, LAB_TAG, wordById,
@@ -13,12 +14,39 @@ import {
   sentenceId, sentencePrompt, parseFeedback, submitSentence, addFeedback, SENTENCE_STATUS, ISSUE_LABEL,
   reviewTask, dailyPlan, quickPicks, quickQuestion, quickUpdate, toeicPicks, dayFinished, wordStats, BOX_LABEL,
   speakingErrors, errorCloze, errorRewriteTask, errorOwnTask, errorWordId,
+  fullSentence, GAMES, STEP_GAME, listenGame, matchGame, dictationGame, dictationOk, builderGame, builderOk, gameUpdate, seedOf,
 } from '../lib/wordLab.js';
 
 // 口說錯誤庫的 ChatGPT 交換格式 JSON（唯讀，只拿來出題）
 const DATASETS = Object.values(import.meta.glob('../data/speaking-*.json', { eager: true, import: 'default' }));
 
 const LETTERS = 'ABCD';
+
+// 喇叭按鈕：用瀏覽器內建的英文語音念出來（不是錄音檔）；slow 用慢速
+const SPEAKER = 'M4 9v6h4l5 4V5L8 9H4zM16 9a4 4 0 010 6M18.5 6.5a8 8 0 010 11';
+export function Say({ text, slow, label }) {
+  if (!text || !canSpeak()) return null;
+  return (
+    <button
+      type="button"
+      className={`say ${slow ? 'slow' : ''}`}
+      aria-label={label || (slow ? `慢慢念 ${text}` : `念出 ${text}`)}
+      title={slow ? '慢速' : '發音'}
+      onClick={(e) => {
+        e.stopPropagation();
+        speak(text, slow ? 0.6 : 0.9);
+      }}
+    >
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d={SPEAKER} />
+      </svg>
+      {slow && <span>慢</span>}
+    </button>
+  );
+}
+
+// 自動發音（設定裡可以關）
+const autoOn = (ws) => ws?.autoSpeak !== false;
 
 async function copyText(text) {
   try {
@@ -87,6 +115,7 @@ export default function WordLab() {
   if (view.name === 'quick') return <QuickSession lab={lab} n={quickN} onBack={back} />;
   if (view.name === 'toeic') return <ToeicMini lab={lab} n={plan.cfg.toeic} onBack={back} />;
   if (view.name === 'errors') return <ErrorList lab={lab} onBack={back} />;
+  if (view.name === 'arena') return <GameArena lab={lab} words={arenaWords(plan, states)} onBack={back} />;
   if (view.name === 'stats') return <Stats lab={lab} onBack={back} onOpen={(id) => setView({ name: 'word', id })} />;
 
   const setMode = (m) => api.set('settings/wordLab', { mode: m, newPerDay: null });
@@ -114,6 +143,10 @@ export default function WordLab() {
           <span className="num">{plan.newPerDay}</span>
           <button className="btn small" onClick={() => setNew(plan.newPerDay + 1)} disabled={plan.newPerDay >= 5}>＋</button>
         </div>
+        <label className="inline small wl-auto">
+          <input type="checkbox" checked={autoOn(ws)} onChange={(e) => api.set('settings/wordLab', { autoSpeak: e.target.checked })} /> 出題時自動念單字
+        </label>
+        {!canSpeak() && <p className="muted small">這個瀏覽器不能朗讀，喇叭按鈕不會出現。</p>}
       </div>
 
       {plan.backlog && (
@@ -170,6 +203,7 @@ export default function WordLab() {
         <h2>加練</h2>
         <div className="row gap wrap">
           <button className="btn" onClick={() => setView({ name: 'errors' })}>口說錯誤練習</button>
+          <button className="btn primary" onClick={() => setView({ name: 'arena' })}>互動小遊戲</button>
           <button className="btn" onClick={() => setView({ name: 'stats' })}>學習分析</button>
         </div>
         <details className="wl-all">
@@ -205,15 +239,23 @@ function WordRow({ w, st, onOpen }) {
 }
 
 // ---- 一題客觀題：答錯看原因，一定要重答 ----
-function QuestionCard({ q, onAnswer, onNext, nextLabel = '下一題', example, tag }) {
+// sayOnOpen：出題時自動念的字（快速辨識字）
+function QuestionCard({ q, onAnswer, onNext, nextLabel = '下一題', example, tag, sayOnOpen }) {
+  const { wordLabSettings: ws } = useData();
   const [attempt, setAttempt] = useState(0);
   const [picked, setPicked] = useState(null);
   const opts = useMemo(() => arrange(q, attempt), [q, attempt]);
   const correct = picked !== null && picked === q.answer;
+  const whole = fullSentence(q);
+  useEffect(() => {
+    if (sayOnOpen && autoOn(ws)) speak(sayOnOpen, 0.9);
+  }, [q.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const choose = (i) => {
     if (picked !== null) return;
     setPicked(i);
     onAnswer(i, attempt);
+    // 答對：把完整的句子念一次
+    if (i === q.answer && whole && autoOn(ws)) speak(whole, 0.9);
   };
   return (
     <div className={`card wl-q ${picked === null ? '' : correct ? 'ok' : 'wrong'}`}>
@@ -222,7 +264,10 @@ function QuestionCard({ q, onAnswer, onNext, nextLabel = '下一題', example, t
         {tag && <span className="muted small">{tag}</span>}
         {attempt > 0 && <span className="chip">重答第 {attempt} 次</span>}
       </div>
-      <p className="wl-prompt">{q.q}</p>
+      <p className="wl-prompt">
+        {q.q}
+        {sayOnOpen && <Say text={sayOnOpen} />}
+      </p>
       <div className="listen-options">
         {opts.map((o, j) => (
           <button
@@ -238,6 +283,7 @@ function QuestionCard({ q, onAnswer, onNext, nextLabel = '下一題', example, t
       {picked !== null && correct && (
         <div className="wl-explain">
           <p className="strong">答對了{attempt ? '（重答）' : ''}</p>
+          {whole && <p className="small wl-whole">{whole} <Say text={whole} /> <Say text={whole} slow /></p>}
           <p className="small">{q.explain}</p>
           <button className="btn primary" onClick={onNext}>{nextLabel}</button>
         </div>
@@ -249,7 +295,7 @@ function QuestionCard({ q, onAnswer, onNext, nextLabel = '下一題', example, t
           <p className="small"><b>解釋：</b>{q.explain}</p>
           {example && (
             <p className="small wl-ex">
-              <b>例句：</b>{example.en}<br /><span className="muted">{example.zh}</span>
+              <b>例句：</b>{example.en} <Say text={example.en} /><br /><span className="muted">{example.zh}</span>
             </p>
           )}
           <p className="muted small">先把答案記在心裡，選項會換位置，再答一次。</p>
@@ -269,7 +315,7 @@ function Examples({ word, st }) {
       <ul>
         {list.map((e) => (
           <li key={e.id}>
-            <span className="chip">{e.use}</span> {e.en}
+            <span className="chip">{e.use}</span> {e.en} <Say text={e.en} />
             <br />
             <span className="muted small">{e.zh}</span>
           </li>
@@ -340,7 +386,9 @@ function WordFlow({ word, lab, onBack }) {
       </div>
       <div className="card wl-head">
         <div className="row between wrap gap">
-          <h3 className="wl-word">{word.word}</h3>
+          <h3 className="wl-word">
+            {word.word} <Say text={word.word} /> <Say text={word.word} slow />
+          </h3>
           <span className="chip">{word.pos}</span>
         </div>
         {step > 1 ? <p className="strong">{word.zh}</p> : <p className="muted small">中文先藏起來，先從句子猜。</p>}
@@ -351,7 +399,14 @@ function WordFlow({ word, lab, onBack }) {
 
       {step >= 3 && (
         <div className="card wl-family">
-          <p className="small"><b>單字家族：</b>{word.family.map(([w, p, z]) => `${w}（${p}）${z}`).join('、')}</p>
+          <p className="small">
+            <b>單字家族：</b>
+            {word.family.map(([w, p, z]) => (
+              <span key={w} className="wl-fam">
+                {w} <Say text={w} />（{p}）{z}
+              </span>
+            ))}
+          </p>
           <p className="small"><b>常見搭配：</b>{word.collocations.join('・')}</p>
           <p className="small"><b>相似字：</b>{word.similar.map(([w, z]) => `${w}＝${z}`).join('；')}</p>
         </div>
@@ -364,6 +419,7 @@ function WordFlow({ word, lab, onBack }) {
       {step <= 4 && !q && (
         <div className="card wl-next">
           <p className="strong">這一步完成了。</p>
+          {STEP_GAME[step] && <GameCard key={`${word.id}-${step}`} word={word} st={st} game={STEP_GAME[step]} seed={step} t={t} title="互動小關" />}
           <button className="btn primary big" onClick={advance}>下一步：{STEPS[step].label}</button>
         </div>
       )}
@@ -622,7 +678,9 @@ function ReviewSession({ lab, due, onBack }) {
       </div>
       <div className="card wl-head">
         <div className="row between wrap gap">
-          <h3 className="wl-word">{word.word}</h3>
+          <h3 className="wl-word">
+            {word.word} <Say text={word.word} />
+          </h3>
           <span className="chip">盒子 {item.box || 0}</span>
         </div>
         <p className="muted small">這次出題：{task.reason}</p>
@@ -693,13 +751,13 @@ function QuickSession({ lab, n, onBack }) {
         <span className="muted small">{Math.min(i + 1, picks.length)}/{picks.length}</span>
       </div>
       {q ? (
-        <QuestionCard key={q.id} q={q} onAnswer={onAnswer} onNext={() => setI(i + 1)} tag="快速辨識" />
+        <QuestionCard key={q.id} q={q} onAnswer={onAnswer} onNext={() => setI(i + 1)} tag="快速辨識" sayOnOpen={qw.word} />
       ) : (
         <div className="card wl-done">
           <p className="strong">今天的快速辨識字做完了。</p>
           {picks.map((w) => (
             <p key={w.word} className="small">
-              <b>{w.word}</b>（{w.pos}）{w.zh}
+              <b>{w.word}</b> <Say text={w.word} />（{w.pos}）{w.zh}
               {wrong.includes(w) && (have.has(itemKey('word', w.word))
                 ? <span className="muted">・已在卡片庫</span>
                 : <button className="link small" onClick={() => addCard(w)}>・答錯了，加到字卡</button>)}
@@ -870,5 +928,233 @@ function Stats({ lab, onBack, onOpen }) {
         );
       })}
     </div>
+  );
+}
+
+// ---- 互動小遊戲 ----
+
+// 練習場用的字：已經開始的字，沒有的話用今天的核心字
+function arenaWords(plan, states) {
+  const started = CORE_WORDS.filter((w) => isStarted(states[w.id]));
+  return started.length ? started : plan.core.length ? plan.core : CORE_WORDS.slice(0, 1);
+}
+
+const GAME_ORDER = ['listen', 'match', 'dictation', 'builder'];
+
+function GameArena({ lab, words, onBack }) {
+  const { t } = lab;
+  const [round, setRound] = useState(0);
+  const [score, setScore] = useState({ ok: 0, n: 0 });
+  const ROUNDS = 6;
+  const word = words[seedOf(`${t}|${round}|w`) % words.length];
+  const game = GAME_ORDER[(seedOf(t) + round) % GAME_ORDER.length];
+  return (
+    <div className="wl">
+      <div className="row between">
+        <button className="link" onClick={onBack}>← 回單字實驗室</button>
+        <span className="muted small">{Math.min(round + 1, ROUNDS)}/{ROUNDS}・答對 {score.ok}</span>
+      </div>
+      {round < ROUNDS ? (
+        <GameCard
+          key={round}
+          word={word}
+          st={lab.states[word.id]}
+          game={game}
+          seed={round + 10}
+          t={t}
+          title={`${word.word}・${GAMES[game].label}`}
+          onDone={(ok) => setScore((s) => ({ ok: s.ok + (ok ? 1 : 0), n: s.n + 1 }))}
+          onNext={() => setRound(round + 1)}
+        />
+      ) : (
+        <div className="card wl-done">
+          <p className="strong">玩完 {ROUNDS} 關，第一次就答對 {score.ok} 關。</p>
+          <button className="btn primary" onClick={() => { setRound(0); setScore({ ok: 0, n: 0 }); }}>再玩一輪</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// 一關小遊戲：只記第一次的結果，答錯可以再試
+function GameCard({ word, st, game, seed, t, title, onDone, onNext }) {
+  const { api } = useData();
+  const [result, setResult] = useState(null);
+  const record = (ok, detail) => {
+    if (result !== null) return;
+    setResult(ok);
+    api.set(`wordLab/${word.id}`, gameUpdate(st, game, ok));
+    api.add('wordLabLog', { wordId: word.id, word: word.word, qid: `game-${game}`, kind: game, skill: GAMES[game].skill, correct: ok, attempt: 1, errorType: ok ? '' : GAMES[game].skill, date: t, atMs: Date.now(), ...detail });
+    onDone?.(ok);
+  };
+  const props = { word, st, seed, record, result };
+  return (
+    <div className={`card wl-game ${result === null ? '' : result ? 'ok' : 'wrong'}`}>
+      <div className="row between wrap gap">
+        <span className="chip">{title || GAMES[game].label}</span>
+        {result !== null && <span className="small strong">{result ? '第一次就對了' : '已記下這次錯誤'}</span>}
+      </div>
+      <p className="muted small">{GAMES[game].hint}</p>
+      {game === 'listen' && <ListenPick {...props} />}
+      {game === 'match' && <MatchPairs {...props} />}
+      {game === 'dictation' && <Dictation {...props} />}
+      {game === 'builder' && <Builder {...props} />}
+      {onNext && result !== null && <button className="btn primary" onClick={onNext}>下一關</button>}
+    </div>
+  );
+}
+
+function ListenPick({ word, seed, record }) {
+  const g = useMemo(() => listenGame(word, seed), [word, seed]);
+  const [picked, setPicked] = useState([]);
+  const solved = picked.includes(g.target);
+  useEffect(() => {
+    speak(g.target, 0.85);
+  }, [g.target]);
+  if (!canSpeak()) return <p className="muted small">這個瀏覽器不能朗讀，這關先跳過。</p>;
+  const pick = (w) => {
+    if (solved || picked.includes(w)) return;
+    if (!picked.length) record(w === g.target, { chosen: w, answer: g.target });
+    setPicked([...picked, w]);
+    if (w !== g.target) speak(g.target, 0.7);
+  };
+  return (
+    <>
+      <div className="row gap">
+        <button className="btn" onClick={() => speak(g.target, 0.85)}>再聽一次</button>
+        <button className="btn" onClick={() => speak(g.target, 0.6)}>慢速</button>
+      </div>
+      <div className="wl-tiles">
+        {g.options.map((w) => (
+          <button key={w} className={`tile ${picked.includes(w) ? (w === g.target ? 'right' : 'mine') : ''}`} onClick={() => pick(w)}>
+            {w}
+          </button>
+        ))}
+      </div>
+      {picked.length > 0 && !solved && <p className="small">不是這個，聽慢速再選一次。</p>}
+      {solved && <p className="small">你聽到的是 <b>{g.target}</b>（{word.family.find(([w]) => w === g.target)?.[1] || ''}）。</p>}
+    </>
+  );
+}
+
+function MatchPairs({ word, seed, record }) {
+  const g = useMemo(() => matchGame(word, seed), [word, seed]);
+  const [left, setLeft] = useState(null);
+  const [done, setDone] = useState([]);
+  const [miss, setMiss] = useState(0);
+  const [flash, setFlash] = useState('');
+  const tryPair = (en) => {
+    if (left === null || done.includes(en)) return;
+    const want = g.pairs[left].en;
+    if (en === want) {
+      speak(en, 0.9);
+      const next = [...done, en];
+      setDone(next);
+      setLeft(null);
+      if (next.length === g.pairs.length) record(miss === 0, { misses: miss });
+    } else {
+      setMiss(miss + 1);
+      setFlash(en);
+      setTimeout(() => setFlash(''), 500);
+    }
+  };
+  return (
+    <div className="wl-match">
+      <div className="wl-col">
+        {g.pairs.map((p, i) => (
+          <button key={p.zh} className={`tile ${done.includes(p.en) ? 'right' : left === i ? 'on' : ''}`} disabled={done.includes(p.en)} onClick={() => setLeft(i)}>
+            {p.zh}
+          </button>
+        ))}
+      </div>
+      <div className="wl-col">
+        {g.right.map((en) => (
+          <button key={en} className={`tile en ${done.includes(en) ? 'right' : flash === en ? 'mine' : ''}`} disabled={done.includes(en)} onClick={() => tryPair(en)}>
+            {en}
+          </button>
+        ))}
+      </div>
+      {miss > 0 && <p className="small muted wl-span">配錯 {miss} 次</p>}
+    </div>
+  );
+}
+
+function Dictation({ word, st, seed, record, result }) {
+  const g = useMemo(() => dictationGame(word, visibleExamples(word, st), seed), [word, seed]); // eslint-disable-line react-hooks/exhaustive-deps
+  const [text, setText] = useState('');
+  const [tries, setTries] = useState(0);
+  const [ok, setOk] = useState(false);
+  useEffect(() => {
+    if (g) speak(g.sentence, 0.85);
+  }, [g]);
+  if (!g) return <p className="muted small">這個字還沒有適合聽寫的句子。</p>;
+  const check = (e) => {
+    e.preventDefault();
+    if (!text.trim() || ok) return;
+    const good = dictationOk(text, g.answer);
+    if (!tries) record(good, { chosen: text.trim(), answer: g.answer });
+    setTries(tries + 1);
+    if (good) setOk(true);
+  };
+  return (
+    <>
+      <p className="wl-prompt">{g.shown}</p>
+      <div className="row gap">
+        <button className="btn" onClick={() => speak(g.sentence, 0.85)}>再聽一次</button>
+        <button className="btn" onClick={() => speak(g.sentence, 0.6)}>慢速</button>
+      </div>
+      <form className="row gap" onSubmit={check}>
+        <input className="grow" value={text} onChange={(e) => setText(e.target.value)} placeholder="空格裡的字" autoCapitalize="off" autoCorrect="off" spellCheck="false" disabled={ok} />
+        <button className="btn primary" disabled={ok}>對答案</button>
+      </form>
+      {tries > 0 && !ok && <p className="small">還不對，再聽一次。{tries >= 2 && <>提示：開頭是 <b>{g.answer.slice(0, 3)}</b>，共 {g.answer.length} 個字母。</>}</p>}
+      {(ok || (result === false && tries >= 3)) && (
+        <p className="small wl-ex">
+          {g.sentence}<br /><span className="muted">{g.zh}</span>
+        </p>
+      )}
+    </>
+  );
+}
+
+function Builder({ word, st, seed, record }) {
+  const g = useMemo(() => builderGame(word, visibleExamples(word, st), seed), [word, seed]); // eslint-disable-line react-hooks/exhaustive-deps
+  const [picked, setPicked] = useState([]);
+  const [checked, setChecked] = useState(null);
+  const [first, setFirst] = useState(true);
+  if (!g) return <p className="muted small">這個字還沒有適合重組的句子。</p>;
+  const left = g.tiles.filter((x) => !picked.includes(x));
+  const check = () => {
+    const good = builderOk(picked, g.sentence);
+    setChecked(good);
+    if (first) {
+      record(good, { chosen: picked.map((x) => x.text).join(' '), answer: g.sentence });
+      setFirst(false);
+    }
+    if (good) speak(g.sentence, 0.9);
+  };
+  return (
+    <>
+      <p className="muted small">{g.zh}</p>
+      <div className="wl-built">
+        {picked.length ? picked.map((x) => (
+          <button key={x.id} className="tile en on" disabled={checked} onClick={() => { setPicked(picked.filter((y) => y !== x)); setChecked(null); }}>
+            {x.text}
+          </button>
+        )) : <span className="muted small">點下面的字卡排句子</span>}
+      </div>
+      <div className="wl-tiles">
+        {left.map((x) => (
+          <button key={x.id} className="tile en" onClick={() => { setPicked([...picked, x]); setChecked(null); }}>
+            {x.text}
+          </button>
+        ))}
+      </div>
+      {!left.length && checked !== true && (
+        <button className="btn primary" onClick={check}>對答案</button>
+      )}
+      {checked === false && <p className="small">順序還不對：點上面的字卡可以拿回來重排。</p>}
+      {checked === true && <p className="small strong">排對了！ <Say text={g.sentence} /></p>}
+    </>
   );
 }

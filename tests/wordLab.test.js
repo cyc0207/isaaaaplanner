@@ -277,3 +277,40 @@ describe('舊資料相容', () => {
     expect(STEPS).toHaveLength(7);
   });
 });
+
+describe('發音和互動小遊戲', async () => {
+  const { fullSentence, listenGame, matchGame, dictationGame, dictationOk, builderGame, builderOk, gameUpdate } = await import('../src/lib/wordLab.js');
+  it('答對後念的完整句：把空格換成答案；找錯題不念', () => {
+    const q = implement.questions.find((x) => x.id === 'q2');
+    expect(fullSentence(q)).toBe('The team spent two weeks implementing the changes requested by the client.');
+    const p5 = implement.questions.find((x) => x.id === 'q8');
+    expect(fullSentence(p5)).toContain('will be implemented across');
+    expect(fullSentence(implement.questions.find((x) => x.kind === 'errorFix'))).toBe('');
+    expect(fullSentence(implement.questions[0])).toBe('The bank plans to implement a new login process for all customers.');
+  });
+  it('每個核心字都能玩 4 種小遊戲', () => {
+    for (const w of CORE_WORDS) {
+      const l = listenGame(w, 1);
+      expect(l.options.length).toBeGreaterThanOrEqual(3);
+      expect(l.options).toContain(l.target);
+      const m = matchGame(w, 1);
+      expect(m.pairs.length).toBeGreaterThanOrEqual(3);
+      expect([...m.right].sort()).toEqual(m.pairs.map((p) => p.en).sort());
+      const d = dictationGame(w, w.examples, 1);
+      expect(d, w.id).toBeTruthy();
+      expect(d.shown).not.toContain(` ${d.answer} `);
+      expect(dictationOk(` ${d.answer.toUpperCase()}. `, d.answer)).toBe(true);
+      const b = builderGame(w, w.examples, 1);
+      expect(b, w.id).toBeTruthy();
+      expect(builderOk(b.tiles, b.sentence)).toBe(false);
+      expect(builderOk([...b.tiles].sort((x, y) => x.id - y.id), b.sentence)).toBe(true);
+    }
+  });
+  it('小遊戲結果算進對應能力，答錯記錯誤類型', () => {
+    const u = gameUpdate({ skills: { collocation: { ok: 1, n: 1 } } }, 'builder', false);
+    expect(u.skills.collocation).toEqual({ ok: 1, n: 2 });
+    expect(u.games.builder).toEqual({ played: 1, ok: 0 });
+    expect(u.lastErrorType).toBe('collocation');
+    expect(gameUpdate({}, 'listen', true)).toEqual({ skills: { pos: { ok: 1, n: 1 } }, games: { listen: { played: 1, ok: 1 } } });
+  });
+});

@@ -541,3 +541,90 @@ export function errorOwnTask(e) {
 }
 
 export const errorWordId = (e) => `err_${seedOf(e.id).toString(36)}`;
+
+// ---- 發音、互動小遊戲 ----
+
+// 題目裡的英文句子（去掉中文的問句那一行），答完可以念完整句
+export function fullSentence(q) {
+  const line = String(q.q || '').split('\n').find((l) => /[A-Za-z]{3,}/.test(l) && !/[一-鿿]/.test(l)) || '';
+  if (!line) return '';
+  const ans = q.options[q.answer];
+  // 找錯題的選項是句子片段，不拼回去；只念原句
+  if (q.kind === 'errorFix') return '';
+  return /_{3}|-{4,}/.test(line) ? line.replace(/_{3,}|-{4,}/, ans) : line;
+}
+
+// 互動小遊戲：聽音選字、配對、聽寫、句子重組
+export const GAMES = {
+  listen: { label: '聽音選字', skill: 'pos', hint: '聽發音，選出你聽到的是哪個字（同一家族的字很像）' },
+  match: { label: '配對', skill: 'meaning', hint: '點左邊一個、再點右邊對應的意思' },
+  dictation: { label: '聽寫', skill: 'meaning', hint: '聽整句，把空格裡的字拼出來' },
+  builder: { label: '句子重組', skill: 'collocation', hint: '照順序點字卡，排出完整句子' },
+};
+// 每一步做完後的小關
+export const STEP_GAME = { 1: 'listen', 2: 'match', 3: 'dictation', 4: 'builder' };
+
+export function listenGame(word, seed = 0) {
+  let forms = [...new Set(word.family.map(([w]) => w))];
+  if (forms.length < 3) forms = [...new Set([...forms, ...word.similar.map(([w]) => w)])];
+  forms = forms.slice(0, 4);
+  const target = forms[seedOf(`${word.id}|${seed}`) % forms.length];
+  return { target, options: shuffled(forms, seedOf(`${word.id}|opts|${seed}`)) };
+}
+
+export function matchGame(word, seed = 0) {
+  const pairs = [...word.family.map(([w, p, z]) => ({ en: w, zh: `${z}（${p}）` })), ...word.similar.map(([w, z]) => ({ en: w, zh: z.split('（')[0] }))]
+    .filter((p, i, a) => a.findIndex((x) => x.en === p.en) === i)
+    .slice(0, 4);
+  return { pairs, right: shuffled(pairs.map((p) => p.en), seedOf(`${word.id}|m|${seed}`)) };
+}
+
+const stripPunct = (s) => s.replace(/^[^A-Za-z]+|[^A-Za-z'-]+$/g, '');
+
+// 聽寫：從已解鎖的例句裡，挖掉這個字（或家族裡的字）
+export function dictationGame(word, examples, seed = 0) {
+  const forms = word.family.map(([w]) => w.toLowerCase()).filter((w) => !/\s/.test(w));
+  const stem = word.word.toLowerCase().slice(0, Math.max(4, word.word.length - 2));
+  const list = examples.length ? examples : word.examples;
+  const order = shuffled(list, seedOf(`${word.id}|d|${seed}`));
+  for (const ex of order) {
+    const toks = ex.en.split(/\s+/);
+    const i = toks.findIndex((tk) => {
+      const w = stripPunct(tk).toLowerCase();
+      return forms.includes(w) || w.startsWith(stem);
+    });
+    if (i < 0) continue;
+    const answer = stripPunct(toks[i]);
+    const shown = toks.map((tk, j) => (j === i ? tk.replace(answer, '_'.repeat(Math.max(3, answer.length))) : tk)).join(' ');
+    return { sentence: ex.en, zh: ex.zh, answer, shown };
+  }
+  return null;
+}
+
+export const dictationOk = (input, answer) => stripPunct(String(input || '').trim()).toLowerCase() === answer.toLowerCase();
+
+// 句子重組：用短一點的例句（最多 12 個字）
+export function builderGame(word, examples, seed = 0) {
+  const list = (examples.length ? examples : word.examples).filter((e) => e.en.split(/\s+/).length <= 12);
+  if (!list.length) return null;
+  const ex = list[seedOf(`${word.id}|b|${seed}`) % list.length];
+  const tiles = ex.en.split(/\s+/).map((text, i) => ({ id: i, text }));
+  let order = shuffled(tiles, seedOf(`${word.id}|bt|${seed}`));
+  // 洗完剛好是原本順序就換一下
+  if (order.every((t, i) => t.id === i)) order = [...order.slice(1), order[0]];
+  return { sentence: ex.en, zh: ex.zh, tiles: order };
+}
+
+export const builderOk = (picked, sentence) => picked.map((t) => t.text).join(' ') === sentence;
+
+// 小遊戲結果 → wordLab/{字} 的欄位；能力只算每一局第一次
+export function gameUpdate(st, game, correct) {
+  const skill = GAMES[game].skill;
+  const cur = (st?.skills || {})[skill] || { ok: 0, n: 0 };
+  const g = (st?.games || {})[game] || { played: 0, ok: 0 };
+  return {
+    skills: { [skill]: { ok: (cur.ok || 0) + (correct ? 1 : 0), n: (cur.n || 0) + 1 } },
+    games: { [game]: { played: g.played + 1, ok: g.ok + (correct ? 1 : 0) } },
+    ...(correct ? {} : { lastErrorType: skill, errors: { [skill]: ((st?.errors || {})[skill] || 0) + 1 } }),
+  };
+}
