@@ -595,7 +595,8 @@ export function dictationGame(word, examples, seed = 0) {
     });
     if (i < 0) continue;
     const answer = stripPunct(toks[i]);
-    const shown = toks.map((tk, j) => (j === i ? tk.replace(answer, '_'.repeat(Math.max(3, answer.length))) : tk)).join(' ');
+    // 空格固定長度，不洩漏字母數
+    const shown = toks.map((tk, j) => (j === i ? tk.replace(answer, '______') : tk)).join(' ');
     return { sentence: ex.en, zh: ex.zh, answer, shown };
   }
   return null;
