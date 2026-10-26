@@ -97,6 +97,8 @@ export function DataProvider({ uid, children }) {
     return {
       set: (path, data, merge = true) => setDoc(ref(path), data, { merge }).catch(report),
       update: (path, data) => updateDoc(ref(path), data).catch(report),
+      // 不訂閱、要用時才讀（例：履歷附件檔）
+      get: (path) => getDoc(ref(path)).then((s) => (s.exists() ? { id: s.id, ...s.data() } : null)),
       remove: (path) => deleteDoc(ref(path)).catch(report),
       add: (name, data) => {
         const d = doc(col(name));
@@ -166,6 +168,7 @@ export function DataProvider({ uid, children }) {
       placeReviews: byId('placeReviews'),
       budgetChanges: (raw.budgetChanges || []).slice().sort((a, b) => (b.createdAtMs || 0) - (a.createdAtMs || 0)),
       inbox: raw.inbox || [],
+      jobSettings: settings.jobs || {},
       mail: (raw.mail || []).slice().sort((a, b) => (b.ts || 0) - (a.ts || 0)),
       gmail: settings.gmail || {},
       englishItems: raw.englishItems || [],

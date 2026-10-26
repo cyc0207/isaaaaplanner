@@ -105,7 +105,7 @@ describe('收件匣匯入', () => {
     expect(p.error).toBeNull();
     expect(p.rows.map((r) => r.status_)).toEqual(['ok', 'ok', 'duplicate', 'error']);
     expect(p.rows[0]).toMatchObject({ kind: 'competition', deadline: '2026-11-30', submitDate: '2026-12-15', status: '要報', url: 'https://a.tw' });
-    expect(p.rows[1]).toMatchObject({ kind: 'resume', deadline: '', status: '要投', url: '' });
+    expect(p.rows[1]).toMatchObject({ kind: 'resume', deadline: '', status: '未確認', url: '' });
     expect(p.rows[1].warnings.length).toBe(1);
   });
   it('normDate', () => {

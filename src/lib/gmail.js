@@ -4,9 +4,10 @@ import { toStr, isValidDateStr } from './date.js';
 export const DEFAULT_QUERIES = {
   competition: '(比賽 OR 競賽 OR 徵件 OR 徵選 OR 黑客松 OR 提案 OR hackathon OR competition OR contest) newer_than:60d',
   english: '',
+  jobs: '(from:jobalerts-noreply@linkedin.com OR from:jobs-noreply@linkedin.com OR from:jobs-listings@linkedin.com OR from:104.com.tw OR from:cake.me OR from:cakeresume.com OR from:yourator.co OR from:1111.com.tw OR 職缺 OR 徵才 OR 招募 OR 應徵 OR "job alert" OR internship OR 實習生) -subject:比賽 newer_than:30d',
 };
 
-export const BOXES = { competition: '比賽', english: '英文信' };
+export const BOXES = { competition: '比賽', english: '英文信', jobs: '求職信' };
 
 export const gmailLink = (msg, email) =>
   `https://mail.google.com/mail/${email ? `?authuser=${encodeURIComponent(email)}` : 'u/0/'}#all/${msg.threadId || msg.id}`;
@@ -51,6 +52,10 @@ export function parseMessage(m) {
     (p.parts || []).forEach(walk);
   };
   walk(m.payload);
+  // HTML 信轉成文字會丟掉網址，先把連結抓出來（職缺信靠這個找到職缺頁）
+  const links = [];
+  for (const r of html.matchAll(/href\s*=\s*["']([^"']+)["']/gi)) links.push(r[1].replace(/&amp;/g, '&'));
+  for (const r of plain.matchAll(/https?:\/\/[^\s<>"')\]]+/g)) links.push(r[0]);
   const ts = Number(m.internalDate) || Date.parse(headers.date) || Date.now();
   return {
     id: m.id,
@@ -62,6 +67,7 @@ export function parseMessage(m) {
     date: toStr(new Date(ts)),
     snippet: htmlToText(m.snippet || ''),
     body: (plain || htmlToText(html)).trim(),
+    links: [...new Set(links.filter((u) => /^https?:\/\//.test(u)))],
   };
 }
 

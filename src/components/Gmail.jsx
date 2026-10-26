@@ -5,6 +5,7 @@ import { useData } from '../data.jsx';
 import { today } from '../lib/date.js';
 import { logError } from '../lib/errlog.js';
 import { DEFAULT_QUERIES, searchIds, getMessage, guessDeadline } from '../lib/gmail.js';
+import { jobLinksIn } from '../lib/jobFit.js';
 
 const SCOPE = 'https://www.googleapis.com/auth/gmail.readonly';
 const TOKEN_KEY = 'gmailToken';
@@ -54,23 +55,24 @@ export function useGmailSync() {
     const known = new Set(mail.map((m) => m.id));
     const t = today();
     const ops = [];
-    // 先收英文信：固定寄件者的英文信裡就算出現 contest 也不要算成比賽
-    for (const box of ['english', 'competition']) {
+    // 先收英文信：固定寄件者的英文信裡就算出現 contest 也不要算成比賽；職缺信也先收，不要被算成比賽
+    for (const box of ['english', 'jobs', 'competition']) {
       const q = (queries[box] || '').trim();
       if (!q) continue;
       const ids = (await searchIds(token, q, 25)).filter((id) => !known.has(id));
       ids.forEach((id) => known.add(id));
       const msgs = await Promise.all(ids.map((id) => getMessage(token, id)));
       for (const m of msgs) {
-        const { body, ...rest } = m;
+        const { body, links, ...rest } = m;
         ops.push({
           set: `mail/${m.id}`,
           merge: false,
           data: {
             ...rest,
             box,
-            body: box === 'english' ? body.slice(0, 40000) : '',
-            guess: box === 'competition' ? guessDeadline(`${m.subject}\n${body}`, t) : '',
+            body: box === 'english' ? body.slice(0, 40000) : box === 'jobs' ? body.slice(0, 20000) : '',
+            guess: box !== 'english' ? guessDeadline(`${m.subject}\n${body}`, t) : '',
+            ...(box === 'jobs' ? { jobLinks: jobLinksIn(links, body).slice(0, 30) } : {}),
             status: 'new',
           },
         });
@@ -133,7 +135,7 @@ export function QueryEditor({ queries }) {
   };
   const save = (e) => {
     e.preventDefault();
-    api.set('settings/gmail', { queries: { competition: f.competition.trim(), english: f.english.trim() } });
+    api.set('settings/gmail', { queries: { competition: f.competition.trim(), english: f.english.trim(), jobs: (f.jobs || '').trim() } });
     setSaved(true);
   };
   return (
@@ -145,14 +147,21 @@ export function QueryEditor({ queries }) {
           <textarea rows={3} value={f.competition} onChange={(e) => edit({ competition: e.target.value })} />
         </label>
         <label>
+          求職信（Gmail 搜尋條件）
+          <textarea rows={3} value={f.jobs || ''} onChange={(e) => edit({ jobs: e.target.value })} />
+        </label>
+        <label>
           固定英文信（例：from:daily@example.com）
           <input value={f.english} onChange={(e) => edit({ english: e.target.value })} placeholder="from:寄件人信箱" />
         </label>
-        <p className="muted small">寫法跟 Gmail 搜尋框一樣。只讀這兩組條件找到的信，不會讀其他信，也不會寄信或刪信。空白就不收那一類。</p>
+        <p className="muted small">寫法跟 Gmail 搜尋框一樣。只讀這幾組條件找到的信，不會讀其他信，也不會寄信或刪信。空白就不收那一類。</p>
         <div className="row gap">
           <button className="btn small primary">儲存</button>
           <button type="button" className="btn small" onClick={() => edit({ competition: DEFAULT_QUERIES.competition })}>
             比賽條件回到預設
+          </button>
+          <button type="button" className="btn small" onClick={() => edit({ jobs: DEFAULT_QUERIES.jobs })}>
+            求職信條件回到預設
           </button>
           {saved && <span className="muted small">已儲存</span>}
         </div>

@@ -2,7 +2,9 @@ import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useData } from '../data.jsx';
 import { today, shortLabel } from '../lib/date.js';
-import { KINDS, STATUSES, emptyItem, buildInboxPreview, INBOX_GPT_PROMPT } from '../lib/inbox.js';
+import { KINDS, STATUSES, emptyItem, buildInboxPreview, INBOX_GPT_PROMPT, isClosed } from '../lib/inbox.js';
+import { JOB_TRACKS } from '../lib/jobs.js';
+import { JobBoard, JobEditor } from '../components/Jobs.jsx';
 import { Sheet, deadlineLabel } from '../components/ui.jsx';
 import { useGmailSync, SyncButton, QueryEditor } from '../components/Gmail.jsx';
 import { gmailLink } from '../lib/gmail.js';
@@ -11,12 +13,11 @@ import { auth } from '../firebase.js';
 const FILTERS = [
   ['open', '進行中'],
   ['competition', '比賽'],
-  ['resume', '履歷'],
+  ['resume', '求職'],
   ['closed', '已結束'],
   ['gmail', 'Gmail'],
   ['import', '匯入'],
 ];
-const CLOSED = new Set(['放棄', '結果', '完成']);
 
 export default function InboxPage() {
   const { inbox, mail, api } = useData();
@@ -32,6 +33,7 @@ export default function InboxPage() {
     const id = params.get('id');
     const it = id && inbox.find((x) => x.id === id);
     if (it) {
+      if (it.kind === 'resume') setFilter('resume');
       setEditing(it);
       setParams({}, { replace: true });
     }
@@ -40,7 +42,7 @@ export default function InboxPage() {
   const newMail = mail.filter((m) => m.box === 'competition' && m.status === 'new').length;
   const shown = inbox
     .filter((it) =>
-      filter === 'open' ? !CLOSED.has(it.status) : filter === 'closed' ? CLOSED.has(it.status) : it.kind === filter && !CLOSED.has(it.status),
+      filter === 'open' ? !isClosed(it) : filter === 'closed' ? isClosed(it) : it.kind === filter && !isClosed(it),
     )
     .sort((a, b) => (a.deadline || '9999').localeCompare(b.deadline || '9999'));
 
@@ -86,6 +88,8 @@ export default function InboxPage() {
         <GmailInbox />
       ) : filter === 'import' ? (
         <InboxImport />
+      ) : filter === 'resume' ? (
+        <JobBoard />
       ) : (
         <>
 
@@ -99,7 +103,7 @@ export default function InboxPage() {
                 {it.kind === 'resume' && it.company && <span className="muted">・{it.company}</span>}
               </div>
               <div className="task-meta">
-                <span className="chip">{KINDS[it.kind]}</span>
+                <span className="chip">{it.kind === 'resume' && JOB_TRACKS[it.track] ? JOB_TRACKS[it.track] : KINDS[it.kind]}</span>
                 <span className={`chip ${it.status === '考慮中' ? 'warn' : ''}`}>{it.status}</span>
                 {it.deadline && (
                   <span>
@@ -114,7 +118,7 @@ export default function InboxPage() {
       </ul>
         </>
       )}
-      {editing && <InboxEditor item={editing} onClose={() => setEditing(null)} />}
+      {editing && (editing.kind === 'resume' ? <JobEditor item={editing} onClose={() => setEditing(null)} /> : <InboxEditor item={editing} onClose={() => setEditing(null)} />)}
     </div>
   );
 }
