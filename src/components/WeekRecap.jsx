@@ -7,11 +7,11 @@ import { slotLabel, ateAt } from '../lib/foodlog.js';
 import { FORMATS, pickPhotos, gridFor, weekStats } from '../lib/recap.js';
 import { Sheet } from './ui.jsx';
 
-// 復古配色（和網站一樣，畫在 canvas 上不能用 CSS 變數）
-const C = { bg: '#f2e8d2', dot: '#e2d3b0', ink: '#2b2118', paper: '#fbf5e6', brick: '#c4502f', mustard: '#e0a526', teal: '#2d6a6a', muted: '#7a6a55' };
+// 西部牛仔配色（和網站一樣，畫在 canvas 上不能用 CSS 變數）
+const C = { bg: '#efe9e1', dot: '#ddd4c8', ink: '#2a211d', paper: '#faf7f1', brick: '#3c5577', mustard: '#d9c3a0', teal: '#4f8a87', muted: '#76695f' };
 const SERIF = "'Noto Serif TC', serif";
 const SANS = "'Noto Sans TC', sans-serif";
-const PIXEL = "'VT323', monospace";
+const PIXEL = "'Alfa Slab One', serif";
 
 const md = (d) => `${Number(d.slice(5, 7))}/${Number(d.slice(8, 10))}`;
 
